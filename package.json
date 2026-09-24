@@ -1,0 +1,11 @@
+{
+  "name": "hsk-study",
+  "private": true,
+  "description": "HSK 1–6 vocabulary study for Japanese-speaking students",
+  "scripts": {
+    "test": "node --test test/vocab.test.js test/level.test.js test/practice.test.js test/audio.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
