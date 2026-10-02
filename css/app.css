@@ -268,6 +268,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .word { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(80px, 1.2fr) 42px minmax(0, 1.6fr) 44px; grid-template-areas: "hanzi pinyin pos gloss audio"; align-items: center; gap: 6px 12px; min-height: 81px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .word:last-child { border-bottom: 0; }
 .word:hover { background: var(--hover); }
+.audio-target { cursor: pointer; touch-action: manipulation; }
+.audio-target.is-playing, .audio-target:active { background: var(--aux-soft); }
+.audio-target:has(.listen:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
 .hanzi { grid-area: hanzi; color: var(--ink); font-family: "Songti SC", "Noto Serif CJK SC", "Noto Serif SC", SimSun, serif; font-size: 1.65rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
 .pinyin { grid-area: pinyin; color: var(--muted); font-family: "Segoe UI", Arial, sans-serif; font-size: .94rem; line-height: 1.4; overflow-wrap: anywhere; }
 .pos { grid-area: pos; display: inline-flex; align-items: center; justify-content: center; justify-self: start; min-width: 28px; width: fit-content; padding: 3px 6px; border-radius: 4px; color: var(--pos-ink); background: var(--pos-bg); font-size: .67rem; font-weight: 700; line-height: 1.6; white-space: nowrap; }

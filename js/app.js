@@ -161,6 +161,9 @@
       var on = button.getAttribute("data-audio") === nowPlaying;
       button.setAttribute("aria-pressed", on ? "true" : "false");
     });
+    Array.prototype.forEach.call(app.querySelectorAll("[data-audio-row]"), function (row) {
+      row.classList.toggle("is-playing", row.getAttribute("data-audio-row") === nowPlaying);
+    });
   }
 
   function refreshRecording() {
@@ -170,7 +173,7 @@
   }
 
   function playHanzi(hanzi) {
-    if (nowPlaying === hanzi && !player.paused) {
+    if (nowPlaying === hanzi) {
       stopAudio();
       markButtons();
       refreshRecording();
@@ -213,6 +216,18 @@
       playHanzi(hanzi);
     });
     return button;
+  }
+
+  function makeAudioTarget(row, hanzi) {
+    row.classList.add("audio-target");
+    row.setAttribute("data-audio-row", hanzi);
+    row.addEventListener("click", function (event) {
+      // The existing native button handles keyboard access and its own clicks.
+      if (event.target.closest("button, a, input, select, textarea, summary")) return;
+      var selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.containsNode(row, true)) return;
+      playHanzi(hanzi);
+    });
   }
 
   function render() {
@@ -264,7 +279,7 @@
     var box = el("section", nowPlaying ? "recording is-playing" : "recording");
     box.setAttribute("data-role", "recording");
     box.appendChild(el("h2", null, "音声"));
-    var status = el("p", null, audioError || (nowPlaying ? "再生中：" + nowPlaying : "スピーカーを押すと、中国語の発音を聞けます。"));
+    var status = el("p", null, audioError || (nowPlaying ? "再生中：" + nowPlaying : "単語や中国語のカードをタップで再生・停止。"));
     status.setAttribute("role", "status");
     box.appendChild(status);
     var button = el("button", null, "停止");
@@ -501,6 +516,7 @@
         item.appendChild(pos);
         item.appendChild(el("span", "gloss", entry.gloss));
         item.appendChild(listenButton(entry.hanzi));
+        makeAudioTarget(item, entry.hanzi);
         fragment.appendChild(item);
       });
       list.replaceChildren(fragment);
@@ -576,6 +592,7 @@
     }
     if (view !== "hanzi") {
       promptRow.appendChild(listenButton(question.prompt));
+      makeAudioTarget(promptRow, question.prompt);
     }
     panel.appendChild(promptRow);
 
@@ -646,6 +663,7 @@
         text.appendChild(el("p", null, entry.gloss));
         row.appendChild(text);
         row.appendChild(listenButton(entry.hanzi));
+        makeAudioTarget(row, entry.hanzi);
         review.appendChild(row);
       });
       panel.appendChild(review);

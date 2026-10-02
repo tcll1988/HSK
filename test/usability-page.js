@@ -228,8 +228,155 @@ async function mobileCase(page, width) {
   }
 }
 
-async function runCase(browser, name, action, width = 1280, initialize) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "reduce" });
+async function countAudioCalls(page) {
+  await page.evaluate(() => {
+    const player = document.querySelector("audio[data-player]");
+    const play = player.play.bind(player);
+    window.__hskTestPlayCount = 0;
+    player.play = () => {
+      window.__hskTestPlayCount += 1;
+      return play();
+    };
+  });
+}
+
+async function audioPlaying(page, row, hanzi) {
+  await page.waitForFunction((word) => {
+    const player = document.querySelector("audio[data-player]");
+    return decodeURIComponent(player.currentSrc || player.src).endsWith("/" + word + ".mp3") && !player.paused && player.readyState >= 2;
+  }, hanzi);
+  assert.equal(await row.evaluate((node) => node.classList.contains("is-playing")), true);
+}
+
+async function audioStopped(page) {
+  await page.waitForFunction(() => document.querySelector("audio[data-player]").paused);
+  assert.equal(await page.locator(".audio-target.is-playing").count(), 0, "stopping must clear active rows");
+  assert.equal(await page.locator('.listen[aria-pressed="true"]').count(), 0);
+}
+
+async function tapAudio(page, target, row, hanzi, options) {
+  const before = await page.evaluate(() => window.__hskTestPlayCount);
+  await target.tap(options);
+  await audioPlaying(page, row, hanzi);
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), before + 1, "a tap must start audio exactly once");
+}
+
+async function touchAudioCase(page) {
+  await countAudioCalls(page);
+  await page.locator(".search").fill("昨天");
+  const yesterday = page.locator('.word[data-hanzi="昨天"]');
+  await tapAudio(page, yesterday.locator(".hanzi"), yesterday, "昨天");
+  await yesterday.locator(".hanzi").tap();
+  await audioStopped(page);
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 1, "a second word tap must stop playback");
+  await tapAudio(page, yesterday.locator(".listen"), yesterday, "昨天");
+  await yesterday.locator(".listen").tap();
+  await audioStopped(page);
+  await tapAudio(page, yesterday.locator(".gloss"), yesterday, "昨天");
+  await page.waitForFunction(() => document.querySelector("audio[data-player]").ended);
+  await audioStopped(page);
+  await tapAudio(page, yesterday, yesterday, "昨天", { position: { x: 4, y: 4 } });
+
+  await page.locator(".search").fill("天");
+  const other = page.locator('.word:not([data-hanzi="昨天"])').first();
+  const otherWord = await other.getAttribute("data-hanzi");
+  await tapAudio(page, other.locator(".hanzi"), other, otherWord);
+  assert.equal(await yesterday.evaluate((node) => node.classList.contains("is-playing")), false, "switching words must clear the previous row");
+  await page.locator("[data-stop-audio]").tap();
+  await audioStopped(page);
+  const beforeKeyboard = await page.evaluate(() => window.__hskTestPlayCount);
+  await other.locator(".listen").focus();
+  await page.keyboard.press("Enter");
+  await audioPlaying(page, other, otherWord);
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), beforeKeyboard + 1, "speaker must remain keyboard-operable");
+  await other.locator(".listen").press("Enter");
+  await audioStopped(page);
+
+  await page.locator('[data-section="practice"]').tap();
+  for (const mode of ["gloss", "pinyin"]) {
+    await page.locator('[data-view="' + mode + '"]').tap();
+    const row = page.locator(".prompt-row");
+    const word = await row.locator(".listen").getAttribute("data-audio");
+    await tapAudio(page, row.locator(".prompt"), row, word);
+    await row.locator(".prompt").tap();
+    await audioStopped(page);
+  }
+  await page.locator('[data-view="hanzi"]').tap();
+  assert.equal(await page.locator(".prompt-row[data-audio-row], .prompt-row .listen").count(), 0, "Japanese prompts must not reveal the Chinese answer through audio");
+  const beforePrompt = await page.evaluate(() => window.__hskTestPlayCount);
+  await page.locator(".prompt").tap();
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), beforePrompt);
+  await audioStopped(page);
+
+  await page.locator('[data-view="gloss"]').tap();
+  await completeRound(page, true);
+  const review = page.locator(".review-word").first();
+  const reviewWord = await review.locator(".listen").getAttribute("data-audio");
+  await tapAudio(page, review.locator("strong"), review, reviewWord);
+  await review.locator("p").tap();
+  await audioStopped(page);
+}
+
+async function touchAudioGuardsCase(page) {
+  await countAudioCalls(page);
+  await page.locator(".search").fill("昨天");
+  const hanzi = page.locator('.word[data-hanzi="昨天"] .hanzi');
+  await hanzi.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await hanzi.dispatchEvent("click");
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 0, "selecting word text must not play audio");
+  await page.evaluate(() => window.getSelection().removeAllRanges());
+
+  await page.locator(".search").fill("");
+  const swipeRow = page.locator(".word").nth(8);
+  await swipeRow.scrollIntoViewIfNeeded();
+  const box = await swipeRow.boundingBox();
+  const point = { x: box.x + 20, y: box.y + box.height / 2 };
+  const scrollBefore = await page.evaluate(() => scrollY);
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+    for (let step = 1; step <= 5; step += 1) {
+      await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: point.x, y: point.y - step * 30 }] });
+    }
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await page.waitForFunction((previous) => scrollY > previous + 20, scrollBefore);
+  } finally {
+    await session.detach();
+  }
+  assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 0, "touch scrolling must not play a word");
+  await audioStopped(page);
+
+  await page.locator(".search").fill("昨天");
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  await page.route("**/*.mp3", async (route) => {
+    await pending;
+    await route.continue();
+  });
+  try {
+    await Promise.all([
+      page.waitForRequest((request) => request.url().endsWith(".mp3")),
+      hanzi.tap()
+    ]);
+    assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 1);
+    assert.equal(await page.locator('.word[data-hanzi="昨天"]').evaluate((node) => node.classList.contains("is-playing")), true);
+    await hanzi.tap();
+    await audioStopped(page);
+    assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 1, "repeated tap while loading must stop, not restart");
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+}
+
+async function runCase(browser, name, action, width = 1280, initialize, contextOptions = {}) {
+  const context = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "reduce", ...contextOptions });
   if (initialize) await context.addInitScript(initialize);
   const page = await context.newPage();
   const errors = [];
@@ -264,7 +411,9 @@ async function main() {
     await runCase(browser, "round", roundCase);
     await runCase(browser, "keyboard", keyboardCase, 390);
     for (const width of [320, 390]) await runCase(browser, "mobile-" + width, (page) => mobileCase(page, width), width);
-    results.push("6 cases passed; pageErrors=0; consoleErrors=0");
+    await runCase(browser, "touch-audio", touchAudioCase, 390, undefined, { hasTouch: true, isMobile: true });
+    await runCase(browser, "touch-audio-guards", touchAudioGuardsCase, 390, undefined, { hasTouch: true, isMobile: true });
+    results.push("8 cases passed; pageErrors=0; consoleErrors=0");
   } finally {
     await browser.close();
     fs.writeFileSync(path.join(outDir, "usability.log"), results.join("\n") + "\n");
