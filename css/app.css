@@ -265,7 +265,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .shuffle-words { min-height: 44px; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; color: var(--aux); background: var(--control); font-size: .75rem; font-weight: 700; }
 .shuffle-words:hover { border-color: var(--aux); background: var(--aux-soft); }
 .words { margin: 0; padding: 0; list-style: none; }
-.word { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(80px, 1.2fr) 42px minmax(0, 1.6fr) 44px; grid-template-areas: "hanzi pinyin pos gloss audio"; align-items: center; gap: 6px 12px; min-height: 81px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.word { display: grid; grid-template-columns: minmax(84px, 1fr) minmax(80px, 1.2fr) 42px minmax(0, 1.6fr) 44px 44px; grid-template-areas: "hanzi pinyin pos gloss audio complete"; align-items: center; gap: 6px 12px; min-height: 81px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .word:last-child { border-bottom: 0; }
 .word:hover { background: var(--hover); }
 .audio-target { cursor: pointer; touch-action: manipulation; }
@@ -288,9 +288,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .app.hide-pinyin .supplement-pinyin,
 .app.hide-japanese .list .gloss,
 .app.hide-japanese .supplement-japanese { display: none; }
-.app.hide-pinyin .word { grid-template-columns: minmax(105px, 1.1fr) 42px minmax(0, 2fr) 44px; grid-template-areas: "hanzi pos gloss audio"; }
-.app.hide-japanese .word { grid-template-columns: minmax(105px, 1.1fr) minmax(90px, 1.4fr) 42px 44px; grid-template-areas: "hanzi pinyin pos audio"; }
-.app.hide-pinyin.hide-japanese .word { grid-template-columns: minmax(105px, 1fr) 42px 44px; grid-template-areas: "hanzi pos audio"; }
+.app.hide-pinyin .word { grid-template-columns: minmax(105px, 1.1fr) 42px minmax(0, 2fr) 44px 44px; grid-template-areas: "hanzi pos gloss audio complete"; }
+.app.hide-japanese .word { grid-template-columns: minmax(105px, 1.1fr) minmax(90px, 1.4fr) 42px 44px 44px; grid-template-areas: "hanzi pinyin pos audio complete"; }
+.app.hide-pinyin.hide-japanese .word { grid-template-columns: minmax(105px, 1fr) 42px 44px 44px; grid-template-areas: "hanzi pos audio complete"; }
 .empty-state { padding: 48px 16px; text-align: center; }
 .empty-state strong { font-size: 1rem; }
 .empty-state p { max-width: 28em; margin: 10px auto 18px; color: var(--muted); font-size: .82rem; }
@@ -350,6 +350,36 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .review-word span { color: var(--muted); font-family: "Segoe UI", Arial, sans-serif; font-size: .86rem; overflow-wrap: anywhere; }
 .review-word p { margin: 3px 0 0; color: var(--muted); font-size: .8125rem; overflow-wrap: anywhere; }
 .summary-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+/* Learning progress stays beside the task it describes. */
+.word-complete { grid-area: complete; display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: var(--control); font-size: 1.1rem; line-height: 1; }
+.word-complete:hover { border-color: var(--aux); color: var(--aux); background: var(--aux-soft); }
+.word-complete[aria-pressed="true"] { border-color: var(--aux); color: var(--card); background: var(--aux); }
+.resume-card { margin-top: 18px; padding: 11px 12px; border-left: 3px solid var(--aux); border-radius: 0 6px 6px 0; color: var(--muted); background: var(--aux-soft); font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.resume-card p { margin: 0; }
+.resume-card strong { color: var(--aux); font-size: .8125rem; }
+.resume-card button { display: block; min-width: 44px; min-height: 44px; width: 100%; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--aux); border-radius: 5px; color: var(--aux); background: var(--card); font-size: .8125rem; font-weight: 700; }
+.resume-card button:hover { color: var(--card); background: var(--aux); }
+.batch-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; margin-bottom: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.batch-controls button, .batch-actions button, .review-controls button, .practice-actions button, .restart-confirm button { min-width: 44px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--aux); background: var(--control); font-size: .8125rem; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.batch-controls button:hover:not(:disabled), .batch-actions button:hover:not(:disabled), .review-controls button:hover:not(:disabled), .practice-actions button:hover:not(:disabled), .restart-confirm button:hover:not(:disabled) { border-color: var(--aux); background: var(--aux-soft); }
+.batch-controls button:disabled, .batch-actions button:disabled, .review-controls button:disabled, .practice-actions button:disabled { color: var(--muted); background: var(--hover); cursor: default; }
+.batch-status { flex: 1; margin: 0; color: var(--muted); font-size: .75rem; line-height: 1.5; text-align: center; }
+.batch-progress { display: grid; gap: 7px; margin-top: 17px; color: var(--muted); font-size: .75rem; }
+.batch-progress progress { display: block; width: 100%; height: 6px; overflow: hidden; border: 0; border-radius: 4px; background: var(--line); accent-color: var(--aux); }
+.batch-progress progress::-webkit-progress-bar { border-radius: 4px; background: var(--line); }
+.batch-progress progress::-webkit-progress-value { border-radius: 4px; background: var(--aux); }
+.batch-progress progress::-moz-progress-bar { border-radius: 4px; background: var(--aux); }
+.learned-count { margin: 0; }
+.batch-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 15px 0 20px; }
+.batch-actions button { flex: 1 1 160px; }
+.review-controls { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: .75rem; }
+.review-controls button { flex: 1; text-align: left; }
+.review-controls > span { flex: 0 0 auto; }
+.practice-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.practice-actions button { color: var(--muted); font-size: .75rem; }
+.restart-confirm { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--accent); border-radius: 7px; color: var(--ink); background: var(--accent-soft); font-size: .8125rem; line-height: 1.65; }
+.restart-confirm p { flex: 1 1 100%; margin: 0; }
+.restart-confirm button { flex: 1 1 100px; border-color: var(--accent); color: var(--accent); }
 @keyframes pulse { 50% { opacity: .4; } }
 @keyframes sound-ring { to { opacity: 0; transform: scale(1.25); } }
 
@@ -387,51 +417,66 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   .recording { margin-bottom: 10px; }
 }
 @media (max-width: 600px) {
-  .app { padding: 23px 16px 36px; }
-  .masthead { align-items: center; gap: 14px; padding: 0 0 23px; }
-  .brand-seal { flex-basis: 42px; width: 42px; height: 51px; font-size: 1.55rem; }
-  .masthead .eyebrow { margin-bottom: 5px; font-size: .58rem; letter-spacing: .1em; }
+  .app { padding: 15px 16px 36px; }
+  .masthead { align-items: center; gap: 12px; padding: 0 0 13px; }
+  .brand-seal { flex-basis: 38px; width: 38px; height: 44px; font-size: 1.4rem; }
+  .masthead .eyebrow { margin-bottom: 2px; font-size: .625rem; letter-spacing: .08em; }
   .masthead h1 { font-size: clamp(1.25rem, 5vw, 1.7rem); letter-spacing: 0; }
-  .masthead-copy > p:not(.eyebrow) { margin-top: 7px; font-size: .75rem; line-height: 1.7; }
-  .study-layout { gap: 13px; margin-top: 19px; }
-  .sidebar-title { font-size: .66rem; }
-  .levels { gap: 5px; }
-  .levels button { min-height: 46px; padding: 7px 2px; border-radius: 5px; }
+  .masthead-copy > p:not(.eyebrow) { display: none; }
+  .study-layout { gap: 10px; margin-top: 12px; }
+  .study-sidebar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+  .sidebar-title { display: none; }
+  .levels { grid-column: 1 / -1; gap: 5px; }
+  .levels button { min-height: 44px; padding: 7px 2px; border-radius: 5px; }
   .levels button strong { font-size: .75rem; }
   .level-count { display: none; }
-  .sections { gap: 7px; margin-top: 12px; }
-  .section-button { min-height: 53px; padding: 8px 12px; }
+  .sections { grid-column: 1; gap: 6px; margin-top: 0; }
+  .section-button { align-items: center; min-height: 44px; padding: 8px 10px; text-align: center; }
   .section-button strong { font-size: .81rem; }
-  .section-button span { font-size: .75rem; }
-  .section-button[aria-pressed="true"]::after { right: 11px; top: 13px; }
-  .study-settings { margin-top: 10px; }
-  .settings-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding: 9px 10px; }
+  .section-button span { display: none; }
+  .section-button[aria-pressed="true"]::after { display: none; }
+  .study-settings { grid-column: 2; min-width: 108px; margin-top: 0; }
+  .study-settings[open] { grid-column: 1 / -1; }
+  .study-sidebar:has(.study-settings[open]) .sections { grid-column: 1 / -1; }
+  .settings-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; min-height: 44px; padding: 8px 10px; }
   .settings-summary strong { font-size: .8125rem; }
-  .settings-status { grid-column: 1 / -1; font-size: .75rem; }
+  .settings-status { display: none; grid-column: 1 / -1; font-size: .75rem; }
+  .study-settings[open] .settings-status { display: block; }
   .settings-grid { grid-template-columns: 1fr; gap: 7px; padding: 8px 10px; }
   .setting-field, .setting-toggle { min-height: 50px; padding: 5px 12px; font-size: .8rem; }
   .settings-note { margin-right: 10px; margin-left: 10px; }
-  .recording { gap: 8px; min-height: 40px; margin-bottom: 8px; }
+  .resume-card { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin-top: 0; padding: 8px 10px; }
+  .resume-card > p, .resume-card > div { flex: 1; min-width: 0; }
+  .resume-card button { flex: 0 0 auto; width: auto; max-width: 45%; margin-top: 0; }
+  .review-controls { grid-column: 1 / -1; margin-top: 0; }
+  .review-controls button { padding-top: 7px; padding-bottom: 7px; }
+  .batch-controls { gap: 8px; margin-top: 12px; padding-top: 12px; }
+  .batch-controls button { padding-right: 9px; padding-left: 9px; }
+  .batch-actions { gap: 7px; margin-bottom: 16px; }
+  .batch-actions button { flex-basis: 125px; }
+  .practice-actions { margin-top: 14px; padding-top: 14px; }
+  .restart-confirm { padding: 12px; }
+  .recording { gap: 8px; min-height: 28px; margin-bottom: 6px; }
   .recording h2 { font-size: .6875rem; }
   .recording p { font-size: .75rem; }
   .recording button { padding-right: 7px; padding-left: 7px; }
   .panel { padding: 18px 16px; border-radius: 9px; }
   .list { padding: 0 16px 4px; }
-  .list-toolbar { position: sticky; top: 0; z-index: 5; margin: 0 -16px; padding: 17px 16px 10px; border-radius: 9px 9px 0 0; }
+  .list-toolbar { position: sticky; top: 0; z-index: 5; margin: 0 -16px; padding: 12px 16px 8px; border-radius: 9px 9px 0 0; }
   .list-heading h2 { font-size: 1.65rem; }
-  .list-heading .eyebrow { font-size: .58rem; }
+  .list-heading .eyebrow { display: none; }
   .count-badge { padding: 4px 8px; font-size: .75rem; }
-  .search-wrap { margin-top: 14px; }
+  .search-wrap { margin-top: 9px; }
   .search { min-height: 48px; }
-  .search-status { margin-top: 6px; min-height: 20px; font-size: .75rem; }
+  .search-status { margin-top: 5px; min-height: 20px; font-size: .75rem; }
   .word,
   .app.hide-pinyin .word,
   .app.hide-japanese .word,
-  .app.hide-pinyin.hide-japanese .word { grid-template-columns: minmax(0, .95fr) minmax(0, 1.25fr) 44px; min-height: 85px; gap: 4px 10px; padding: 14px 0; }
-  .word { grid-template-areas: "hanzi pos audio" "pinyin gloss audio"; }
-  .app.hide-pinyin .word { grid-template-areas: "hanzi pos audio" "hanzi gloss audio"; }
-  .app.hide-japanese .word { grid-template-areas: "hanzi pos audio" "hanzi pinyin audio"; }
-  .app.hide-pinyin.hide-japanese .word { grid-template-areas: "hanzi pos audio"; }
+  .app.hide-pinyin.hide-japanese .word { grid-template-columns: minmax(0, .95fr) minmax(0, 1.25fr) 44px 44px; min-height: 79px; gap: 4px 8px; padding: 11px 0; }
+  .word { grid-template-areas: "hanzi pos audio complete" "pinyin gloss audio complete"; }
+  .app.hide-pinyin .word { grid-template-areas: "hanzi pos audio complete" "hanzi gloss audio complete"; }
+  .app.hide-japanese .word { grid-template-areas: "hanzi pos audio complete" "hanzi pinyin audio complete"; }
+  .app.hide-pinyin.hide-japanese .word { grid-template-areas: "hanzi pos audio complete"; }
   .word .hanzi { font-size: 1.45rem; }
   .word .pinyin { font-size: .875rem; }
   .word .pos { font-size: .6875rem; padding: 2px 5px; }
@@ -456,6 +501,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   .answer-explanation { font-size: .8125rem; padding: 10px 12px; }
   .practice-bar { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; margin: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--card); }
   .practice-bar .next { width: 100%; }
+  .practice:has(.restart-confirm:not([hidden])) .practice-bar { display: none; }
   .round-summary { padding: 28px 18px 22px; }
   .round-summary > h2 { font-size: 1.4rem; }
   .summary-score strong { font-size: 3.8rem; }
@@ -469,13 +515,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 @media (max-width: 360px) {
   .app { padding-right: 12px; padding-left: 12px; }
   .masthead { gap: 11px; }
-  .brand-seal { flex-basis: 38px; width: 38px; height: 47px; }
+  .brand-seal { flex-basis: 36px; width: 36px; height: 43px; }
   .levels { gap: 3px; }
   .levels button strong { font-size: .6875rem; }
   .settings-summary { column-gap: 6px; }
   .list { padding-right: 12px; padding-left: 12px; }
   .list-toolbar { margin-right: -12px; margin-left: -12px; padding-right: 12px; padding-left: 12px; }
-  .word, .app.hide-pinyin .word, .app.hide-japanese .word, .app.hide-pinyin.hide-japanese .word { column-gap: 8px; }
+  .word, .app.hide-pinyin .word, .app.hide-japanese .word, .app.hide-pinyin.hide-japanese .word { column-gap: 6px; }
   .word .hanzi { font-size: 1.32rem; }
 }
 @media (prefers-reduced-motion: reduce) {

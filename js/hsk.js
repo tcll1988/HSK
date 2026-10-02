@@ -116,7 +116,7 @@
     };
   }
 
-  function buildRound(vocab, level, mode, seed, count) {
+  function buildRound(vocab, level, mode, seed, count, entryIds) {
     if (!MODES[mode]) {
       throw new Error("unknown practice " + mode);
     }
@@ -129,7 +129,16 @@
       throw new Error("bad round size " + count);
     }
     var rng = mulberry32(Number(seed) || 1);
-    return shuffle(pool, rng).slice(0, n).map(function (entry) {
+    var targets = shuffle(pool, rng).slice(0, n);
+    if (entryIds != null) {
+      if (!Array.isArray(entryIds) || entryIds.length !== n || new Set(entryIds).size !== n) throw new Error("bad review targets");
+      targets = entryIds.map(function (id) {
+        var entry = pool.find(function (item) { return item.id === id; });
+        if (!entry) throw new Error("review target outside level");
+        return entry;
+      });
+    }
+    return targets.map(function (entry) {
       return buildQuestion(pool, entry, mode, rng);
     });
   }
@@ -165,6 +174,7 @@
     prepareVocab: prepareVocab,
     wordsForLevel: wordsForLevel,
     buildRound: buildRound,
+    seededRandom: mulberry32,
     audioSrc: audioSrc,
     scoreChoice: scoreChoice
   };

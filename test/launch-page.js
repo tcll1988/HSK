@@ -9,9 +9,12 @@ const root = path.join(__dirname, "..");
 const outDir = process.argv[2];
 
 function pageUrl() {
-  const url = pathToFileURL(path.join(root, "index.html"));
+  const url = process.env.HSK_BASE_URL
+    ? new URL("index.html", process.env.HSK_BASE_URL.replace(/\/?$/, "/"))
+    : pathToFileURL(path.join(root, "index.html"));
   url.searchParams.set("seed", "7");
   url.searchParams.set("level", "1");
+  url.searchParams.set("view", "list");
   return url.href;
 }
 
@@ -81,6 +84,7 @@ async function runOnce(browser, index) {
     }
   }
 
+  await page.locator(".search").fill("昨天");
   const level1 = await hanziTexts(page);
   if (level1.indexOf("昨天") === -1) throw new Error("level 1 missing 昨天");
   if (level1.indexOf("爱不释手") !== -1) throw new Error("level 1 shows 爱不释手");
@@ -103,6 +107,7 @@ async function runOnce(browser, index) {
   if (!playedYesterday) throw new Error("昨天 did not play");
 
   await page.locator('.levels [data-level="6"]').click();
+  await page.locator(".search").fill("爱不释手");
   await page.locator('[data-hanzi="爱不释手"]').first().waitFor();
   const level6 = await hanziTexts(page);
   if (level6.indexOf("爱不释手") === -1) throw new Error("level 6 missing 爱不释手");
@@ -177,7 +182,9 @@ async function main() {
   }
   fs.mkdirSync(outDir, { recursive: true });
   const lines = [];
-  const browser = await chromium.launch({ headless: true });
+  const options = { headless: true };
+  if (process.env.HSK_CHROMIUM_EXECUTABLE) options.executablePath = process.env.HSK_CHROMIUM_EXECUTABLE;
+  const browser = await chromium.launch(options);
   try {
     const first = await runOnce(browser, 1);
     const second = await runOnce(browser, 2);

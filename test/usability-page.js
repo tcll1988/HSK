@@ -51,7 +51,8 @@ async function completeRound(page, alternating) {
 
 async function searchCase(page) {
   const search = page.locator(".search");
-  assert.equal(await page.locator(".word").count(), 148);
+  assert.equal(await page.locator(".word").count(), 20);
+  assert.equal(await page.locator('[data-current-level="1"]').textContent(), "148");
   for (const query of ["昨天", "昨日", "zuotian", "zuo tian"]) {
     await search.fill(query);
     const words = await page.locator(".word .hanzi").allTextContents();
@@ -65,7 +66,7 @@ async function searchCase(page) {
   assert.match(await page.locator(".search-status").innerText(), /(^|\D)0(?=\D|$)/);
   await page.locator("button.reset-search").click();
   assert.equal(await search.inputValue(), "");
-  assert.equal(await page.locator(".word").count(), 148);
+  assert.equal(await page.locator(".word").count(), 20);
   assert.equal(await page.locator(".empty-state").isVisible(), false);
   await search.fill("昨天");
   await page.locator('[data-section="practice"]').click();
@@ -89,15 +90,37 @@ function seedOrderingRandom() {
   };
 }
 
+async function allWordRows(page) {
+  const previous = page.locator("[data-batch-prev]");
+  const next = page.locator("[data-batch-next]");
+  const available = async (button) => await button.isVisible() && await button.isEnabled();
+  let originalBatch = 0;
+  while (await available(previous)) {
+    await previous.click();
+    originalBatch += 1;
+    assert.ok(originalBatch < 150, "batch navigation must terminate");
+  }
+  const rows = [];
+  for (let batch = 0; ; batch += 1) {
+    assert.ok(batch < 150, "batch navigation must terminate");
+    rows.push(...await page.locator(".word").evaluateAll((nodes) => nodes.map((node) => ({
+      id: Number(node.dataset.entryId),
+      reading: node.querySelector(".pinyin").textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s'’\-]/g, "")
+    }))));
+    if (!(await available(next))) break;
+    await next.click();
+  }
+  while (await available(previous)) await previous.click();
+  for (let batch = 0; batch < originalBatch; batch += 1) await next.click();
+  return rows;
+}
+
 async function wordIds(page) {
-  return page.locator(".word").evaluateAll((rows) => rows.map((row) => Number(row.dataset.entryId)));
+  return (await allWordRows(page)).map((row) => row.id);
 }
 
 async function assertPinyinOrder(page) {
-  const rows = await page.locator(".word").evaluateAll((nodes) => nodes.map((node) => ({
-    id: Number(node.dataset.entryId),
-    reading: node.querySelector(".pinyin").textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f\s'’\-]/g, "")
-  })));
+  const rows = await allWordRows(page);
   for (let index = 1; index < rows.length; index += 1) {
     const before = rows[index - 1];
     const after = rows[index];
@@ -150,6 +173,7 @@ async function orderingCase(page) {
   assert.equal(await order.inputValue(), "random", "selected order must persist after reload");
   assert.equal(await shuffle.isVisible(), true);
   sameEntries(await wordIds(page));
+  assert.deepEqual(await wordIds(page), reshuffled, "random order must persist after reload");
   await order.selectOption("pinyin");
   assert.equal(await shuffle.isVisible(), false);
   await assertPinyinOrder(page);
@@ -174,7 +198,7 @@ async function roundCase(page) {
   assert.equal(await page.locator(".review-word").count(), 0, "a perfect round has no missed words");
   await page.locator("[data-return-list]").click();
   assert.equal(await page.locator(".list").isVisible(), true);
-  assert.equal(await page.locator(".word").count(), 148);
+  assert.equal(await page.locator(".word").count(), 20);
 }
 
 async function keyboardCase(page) {
@@ -333,6 +357,8 @@ async function touchAudioGuardsCase(page) {
   await page.evaluate(() => window.getSelection().removeAllRanges());
 
   await page.locator(".search").fill("");
+  const previousBatch = page.locator("[data-batch-prev]");
+  while (await previousBatch.isEnabled()) await previousBatch.click();
   const swipeRow = page.locator(".word").nth(8);
   await swipeRow.scrollIntoViewIfNeeded();
   const box = await swipeRow.boundingBox();

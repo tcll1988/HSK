@@ -3,14 +3,18 @@
   "use strict";
 
   var vocab = window.HSK.prepareVocab(window.HSK_VOCAB);
+  var entriesById = new Map(vocab.map(function (entry) { return [entry.id, entry]; }));
+  var progress = loadProgress();
+  var offerResume = !!progress.updatedAt;
+  var batchSize = 20;
   var params = new URLSearchParams(window.location.search);
   var seedText = params.get("seed");
   var fixedSeed = seedText === null || seedText === "" ? null : Number(seedText);
-  var level = Number(params.get("level") || "1");
+  var level = Number(params.get("level") || progress.level || "1");
   if (!Number.isInteger(level) || level < 1 || level > 6) level = 1;
-  var view = params.get("view") || "list";
-  if (view !== "list" && !window.HSK.MODES[view]) view = "list";
-  var lastPracticeView = view === "list" ? "gloss" : view;
+  var view = params.get("view") || (params.has("level") ? "list" : progress.view) || "list";
+  if (view !== "list" && !validMode(view)) view = "list";
+  var lastPracticeView = view === "list" ? progress.lastPracticeView || "gloss" : view;
   var preferences = loadPreferences();
   var settingsOpen = false;
   var searchQueries = {};
@@ -28,6 +32,10 @@
   var sessionSeed = fixedSeed;
   var roundComplete = false;
   var mistakes = [];
+  var answers = [];
+  var practiceKind = "normal";
+  var reviewIds = null;
+  var activeSessionKey = "";
 
   var app = document.getElementById("app");
   var player = document.createElement("audio");
@@ -58,7 +66,7 @@
   function loadPreferences() {
     var saved = {};
     try { saved = JSON.parse(localStorage.getItem("hsk-study-preferences-v1")) || {}; } catch (error) {}
-    var speed = Number(saved.speed);
+    var speed = typeof saved.speed === "number" ? saved.speed : 1;
     return {
       speed: [0.5, 0.75, 1, 1.25, 1.5].indexOf(speed) !== -1 ? speed : 1,
       showPinyin: saved.showPinyin === true,
@@ -69,6 +77,168 @@
 
   function savePreferences() {
     try { localStorage.setItem("hsk-study-preferences-v1", JSON.stringify(preferences)); } catch (error) {}
+  }
+
+  function validMode(mode) { return typeof mode === "string" && Object.prototype.hasOwnProperty.call(window.HSK.MODES, mode); }
+
+  function loadProgress() {
+    var saved;
+    try { saved = JSON.parse(localStorage.getItem("hsk-study-progress-v1")); } catch (error) {}
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) saved = {};
+    function ids(value) {
+      return Array.isArray(value) ? Array.from(new Set(value.filter(function (id) { return entriesById.has(id); }))) : [];
+    }
+    function object(value) { return value && typeof value === "object" && !Array.isArray(value) ? value : {}; }
+    var state = {
+      level: Number.isInteger(saved.level) && saved.level >= 1 && saved.level <= 6 ? saved.level : 1,
+      view: saved.view === "list" || validMode(saved.view) ? saved.view : "list",
+      lastPracticeView: validMode(saved.lastPracticeView) ? saved.lastPracticeView : "gloss",
+      wrongIds: ids(saved.wrongIds), learnedIds: ids(saved.learnedIds),
+      sessions: {}, activeKinds: {}, listPositions: {}, randomSeeds: {},
+      updatedAt: Number.isFinite(saved.updatedAt) ? saved.updatedAt : 0
+    };
+    Object.keys(object(saved.sessions)).forEach(function (key) {
+      if (/^[1-6]:(gloss|hanzi|pinyin):(normal|review)$/.test(key)) state.sessions[key] = saved.sessions[key];
+    });
+    Object.keys(object(saved.activeKinds)).forEach(function (key) {
+      if (/^[1-6]:(gloss|hanzi|pinyin)$/.test(key) && saved.activeKinds[key] === "review") state.activeKinds[key] = "review";
+    });
+    for (var n = 1; n <= 6; n += 1) {
+      var position = object(object(saved.listPositions)[n]);
+      var entry = entriesById.get(position.entryId);
+      state.listPositions[n] = {
+        batch: Number.isInteger(position.batch) && position.batch >= 0 ? Math.min(position.batch, Math.ceil(window.HSK.wordsForLevel(vocab, n).length / 20) - 1) : 0,
+        entryId: entry && entry.level === n ? entry.id : null
+      };
+      var seed = object(saved.randomSeeds)[n];
+      if (Number.isInteger(seed) && seed > 0 && seed <= 0x7fffffff) state.randomSeeds[n] = seed;
+    }
+    return state;
+  }
+
+  function saveProgress() {
+    progress.level = level;
+    progress.view = view;
+    progress.lastPracticeView = lastPracticeView;
+    progress.updatedAt = Date.now();
+    if (activeSessionKey && round.length) {
+      progress.sessions[activeSessionKey] = {
+        seed: sessionSeed, reviewIds: reviewIds, answers: answers.slice(),
+        questionIndex: questionIndex, complete: roundComplete
+      };
+    }
+    try { localStorage.setItem("hsk-study-progress-v1", JSON.stringify(progress)); } catch (error) {}
+  }
+
+  function setNavigation() {
+    // Keep explicit shared links useful while allowing reload to keep the current screen.
+    var url = new URL(window.location.href);
+    if (url.searchParams.has("level")) url.searchParams.set("level", String(level));
+    if (url.searchParams.has("level") || url.searchParams.has("view")) url.searchParams.set("view", view);
+    try { window.history.replaceState(null, "", url); } catch (error) {}
+  }
+
+  function activateRound() {
+    var base = level + ":" + view;
+    practiceKind = progress.activeKinds[base] === "review" ? "review" : "normal";
+    activeSessionKey = base + ":" + practiceKind;
+    var saved = progress.sessions[activeSessionKey];
+    try {
+      if (!saved || !Number.isInteger(saved.seed) || !Array.isArray(saved.answers)) throw new Error("invalid session");
+      sessionSeed = saved.seed;
+      reviewIds = practiceKind === "review" ? saved.reviewIds : null;
+      if (practiceKind === "review" && (!Array.isArray(reviewIds) || !reviewIds.length || reviewIds.length > 10 || new Set(reviewIds).size !== reviewIds.length || !reviewIds.every(function (id) { var entry = entriesById.get(id); return entry && entry.level === level; }))) throw new Error("invalid review");
+      round = window.HSK.buildRound(vocab, level, view, sessionSeed, reviewIds ? reviewIds.length : 10, reviewIds);
+      questionIndex = saved.questionIndex;
+      if (!Number.isInteger(questionIndex) || questionIndex < 0 || questionIndex >= round.length || (saved.answers.length !== questionIndex && saved.answers.length !== questionIndex + 1) || !saved.answers.every(function (answer) { return Number.isInteger(answer) && answer >= 0 && answer < 4; }) || (saved.complete && saved.answers.length !== round.length)) throw new Error("invalid answers");
+      answers = saved.answers.slice();
+      answered = answers.length > questionIndex;
+      roundComplete = saved.complete === true;
+      correctCount = 0;
+      mistakes = [];
+      answers.forEach(function (answer, index) {
+        if (window.HSK.scoreChoice(round[index], answer)) correctCount += 1;
+        else mistakes.push(round[index]);
+      });
+    } catch (error) {
+      practiceKind = "normal";
+      progress.activeKinds[base] = "normal";
+      sessionSeed = fixedSeed;
+      startRound();
+    }
+  }
+
+  function rememberedPosition() { return progress.listPositions[level]; }
+
+  function dismissResume() {
+    offerResume = false;
+    var card = app.querySelector(".resume-card");
+    if (card) card.remove();
+  }
+
+  function rememberEntry(entry) {
+    dismissResume();
+    clearTimeout(scrollTimer);
+    scrollTimer = null;
+    var position = rememberedPosition();
+    position.entryId = entry.id;
+    position.batch = Math.floor(orderedWords(false).findIndex(function (word) { return word.id === entry.id; }) / batchSize);
+    saveProgress();
+  }
+
+  function wrongWords() {
+    return progress.wrongIds.filter(function (id) { return entriesById.get(id).level === level; });
+  }
+
+  function beginReview(ids) {
+    saveProgress();
+    if (view === "list") view = lastPracticeView;
+    var targets = Array.from(new Set(ids)).slice(0, 10);
+    if (!targets.length) return;
+    sessionSeed = fixedSeed;
+    startRound(targets);
+    offerResume = false;
+    render();
+    focusContent();
+  }
+
+  function renderResume() {
+    var box = el("div", "resume-card");
+    var position = rememberedPosition();
+    var entry = entriesById.get(position.entryId);
+    box.appendChild(el("p", null, "HSK " + level + " · " + (view === "list" ? (entry ? entry.hanzi + " から" : "前回の単語から") : "前回の練習から")));
+    var button = el("button", "secondary-button", "続きから学ぶ");
+    button.type = "button";
+    button.setAttribute("data-resume", "");
+    button.addEventListener("click", function () {
+      offerResume = false;
+      entry = entriesById.get(rememberedPosition().entryId);
+      if (view === "list") searchQueries[level] = "";
+      render();
+      focusContent();
+      var row = entry && app.querySelector('.word[data-entry-id="' + entry.id + '"]');
+      if (row) {
+        row.tabIndex = -1;
+        row.focus({ preventScroll: true });
+        var toolbar = app.querySelector(".list-toolbar");
+        var offset = toolbar && getComputedStyle(toolbar).position === "sticky" ? toolbar.getBoundingClientRect().height : 12;
+        window.scrollBy({ top: row.getBoundingClientRect().top - offset - 8, behavior: "instant" });
+      }
+    });
+    box.appendChild(button);
+    return box;
+  }
+
+  function renderReviewControls() {
+    var box = el("div", "review-controls");
+    var ids = wrongWords();
+    box.hidden = !ids.length;
+    var button = el("button", "secondary-button", "間違えた単語を復習 · " + ids.length + " 語");
+    button.type = "button";
+    button.setAttribute("data-review-start", "");
+    button.addEventListener("click", function () { beginReview(wrongWords()); });
+    box.appendChild(button);
+    return box;
   }
 
   function settingsStatus() {
@@ -105,14 +275,18 @@
     if (reshuffle || !randomWordOrders[level]) {
       var previous = randomWordOrders[level] || pinyinWordOrders[level];
       var shuffled = pinyinWordOrders[level].slice();
+      if (reshuffle || !progress.randomSeeds[level]) progress.randomSeeds[level] = Math.floor(Math.random() * 0x7fffffff) + 1;
+      var random = window.HSK.seededRandom(progress.randomSeeds[level]);
       for (var i = shuffled.length - 1; i > 0; i -= 1) {
-        var j = Math.floor(Math.random() * (i + 1));
+        var j = Math.floor(random() * (i + 1));
         var entry = shuffled[i];
         shuffled[i] = shuffled[j];
         shuffled[j] = entry;
       }
-      if (shuffled.length > 1 && shuffled.every(function (entry, index) { return entry.id === previous[index].id; })) {
-        shuffled.push(shuffled.shift());
+      if (reshuffle && shuffled.length > 1 && shuffled.every(function (entry, index) { return entry.id === previous[index].id; })) {
+        progress.randomSeeds[level] = progress.randomSeeds[level] % 0x7fffffff + 1;
+        delete randomWordOrders[level];
+        return orderedWords(false);
       }
       randomWordOrders[level] = shuffled;
     }
@@ -126,13 +300,18 @@
     return sessionSeed;
   }
 
-  function startRound() {
-    round = window.HSK.buildRound(vocab, level, view, ensureSeed(), 10);
+  function startRound(targets) {
+    reviewIds = targets || null;
+    practiceKind = reviewIds ? "review" : "normal";
+    activeSessionKey = level + ":" + view + ":" + practiceKind;
+    progress.activeKinds[level + ":" + view] = practiceKind;
+    round = window.HSK.buildRound(vocab, level, view, ensureSeed(), reviewIds ? reviewIds.length : 10, reviewIds);
     questionIndex = 0;
     answered = false;
     correctCount = 0;
     roundComplete = false;
     mistakes = [];
+    answers = [];
   }
 
   function currentQuestion() {
@@ -241,6 +420,8 @@
     sidebar.appendChild(renderLevels());
     sidebar.appendChild(renderSections());
     sidebar.appendChild(renderSettings());
+    if (offerResume) sidebar.appendChild(renderResume());
+    sidebar.appendChild(renderReviewControls());
     layout.appendChild(sidebar);
     var content = el("div", "study-content");
     content.appendChild(renderRecording());
@@ -249,6 +430,8 @@
     layout.appendChild(content);
     app.appendChild(layout);
     applyPreferences();
+    setNavigation();
+    saveProgress();
     window.HSK_PAGE = {
       level: level,
       view: view,
@@ -316,8 +499,10 @@
   function onLevel(next) {
     return function () {
       if (level === next) return;
+      dismissResume();
+      saveProgress();
       level = next;
-      if (view !== "list") startRound();
+      if (view !== "list") activateRound();
       render();
       focusContent();
     };
@@ -337,12 +522,14 @@
       button.appendChild(el("span", null, item[2]));
       button.addEventListener("click", function () {
         if (active) return;
+        dismissResume();
+        saveProgress();
         if (item[0] === "list") {
           lastPracticeView = view;
           view = "list";
         } else {
           view = lastPracticeView;
-          startRound();
+          activateRound();
         }
         render();
         focusContent();
@@ -417,9 +604,11 @@
       button.setAttribute("aria-pressed", view === item[0] ? "true" : "false");
       button.addEventListener("click", function () {
         if (view === item[0]) return;
+        dismissResume();
+        saveProgress();
         view = item[0];
         lastPracticeView = view;
-        startRound();
+        activateRound();
         render();
         focusContent();
       });
@@ -431,6 +620,8 @@
   function renderList() {
     var panel = el("section", "panel list");
     var listWords = orderedWords(false);
+    var position = rememberedPosition();
+    if (position.entryId) position.batch = Math.floor(listWords.findIndex(function (entry) { return entry.id === position.entryId; }) / batchSize);
     var toolbar = el("div", "list-toolbar");
     var heading = el("div", "list-heading");
     var title = el("div");
@@ -494,15 +685,43 @@
     reset.type = "button";
     empty.appendChild(reset);
     panel.appendChild(empty);
+    var batchProgress = el("div", "batch-progress");
+    var learnedCount = el("p", "learned-count");
+    learnedCount.setAttribute("role", "status");
+    batchProgress.appendChild(learnedCount);
+    panel.appendChild(batchProgress);
+    var batches = el("div", "batch-controls");
+    var previous = el("button", "secondary-button", "前の20語");
+    previous.type = "button";
+    previous.setAttribute("data-batch-prev", "");
+    var batchStatus = el("span", "batch-status");
+    var nextBatch = el("button", "secondary-button", "次の20語");
+    nextBatch.type = "button";
+    nextBatch.setAttribute("data-batch-next", "");
+    batches.appendChild(previous);
+    batches.appendChild(batchStatus);
+    batches.appendChild(nextBatch);
+    panel.appendChild(batches);
+
+    function updateLearned(entries) {
+      var count = entries.filter(function (entry) { return progress.learnedIds.indexOf(entry.id) !== -1; }).length;
+      learnedCount.textContent = (search.value.trim() ? "検索結果" : "このグループ") + "：学習済み " + count + " / " + entries.length + " 語";
+      if (!search.value.trim()) status.textContent = (position.batch * batchSize + 1) + "–" + Math.min((position.batch + 1) * batchSize, listWords.length) + " / " + listWords.length + " 語 · ✓ 学習済み " + count + "/" + entries.length;
+    }
 
     function draw(query) {
       var fragment = document.createDocumentFragment();
       var needle = normalizeSearch(query.trim());
-      var matched = 0;
-      listWords.forEach(function (entry) {
-        var hay = searchIndex.get(entry.id);
-        if (needle && hay.indexOf(needle) === -1) return;
-        matched += 1;
+      var matches = listWords.filter(function (entry) { return !needle || searchIndex.get(entry.id).indexOf(needle) !== -1; });
+      var matched = matches.length;
+      var start = position.batch * batchSize;
+      var visible = needle ? matches : matches.slice(start, start + batchSize);
+      batches.hidden = !!needle;
+      previous.disabled = position.batch === 0;
+      nextBatch.disabled = start + batchSize >= listWords.length;
+      batchStatus.textContent = (start + 1) + "–" + Math.min(start + batchSize, listWords.length) + " / " + listWords.length;
+      updateLearned(visible);
+      visible.forEach(function (entry) {
         var item = el("li", "word");
         item.setAttribute("data-entry-id", String(entry.id));
         item.setAttribute("data-hanzi", entry.hanzi);
@@ -516,30 +735,59 @@
         item.appendChild(pos);
         item.appendChild(el("span", "gloss", entry.gloss));
         item.appendChild(listenButton(entry.hanzi));
+        var learned = el("button", "word-complete", "✓");
+        learned.type = "button";
+        learned.setAttribute("data-mark-learned", "");
+        function labelLearned() {
+          var complete = progress.learnedIds.indexOf(entry.id) !== -1;
+          learned.setAttribute("aria-pressed", complete ? "true" : "false");
+          learned.setAttribute("aria-label", entry.hanzi + (complete ? " を未学習に戻す" : " を学習済みにする"));
+          learned.title = complete ? "学習済み" : "学習済みにする";
+        }
+        labelLearned();
+        learned.addEventListener("click", function () {
+          var index = progress.learnedIds.indexOf(entry.id);
+          if (index === -1) progress.learnedIds.push(entry.id);
+          else progress.learnedIds.splice(index, 1);
+          rememberEntry(entry);
+          labelLearned();
+          updateLearned(visible);
+        });
+        item.appendChild(learned);
         makeAudioTarget(item, entry.hanzi);
+        item.addEventListener("click", function () { rememberEntry(entry); });
         fragment.appendChild(item);
       });
       list.replaceChildren(fragment);
       empty.hidden = matched > 0;
-      status.textContent = needle ? matched + " 語が見つかりました / 全 " + listWords.length + " 語" : "全 " + listWords.length + " 語 · 声調なしのピンインでも検索できます";
+      if (needle) status.textContent = matched + " 語が見つかりました / 全 " + listWords.length + " 語";
       markButtons();
     }
 
     search.addEventListener("input", function () {
+      dismissResume();
       clear.hidden = !search.value;
       searchQueries[level] = search.value;
       draw(search.value);
     });
     orderSelect.addEventListener("change", function () {
+      dismissResume();
       preferences.wordOrder = orderSelect.value;
       savePreferences();
       shuffleButton.hidden = preferences.wordOrder !== "random";
       listWords = orderedWords(false);
+      position.batch = 0;
+      position.entryId = listWords[0].id;
       draw(search.value);
+      saveProgress();
     });
     shuffleButton.addEventListener("click", function () {
+      dismissResume();
       listWords = orderedWords(true);
+      position.batch = 0;
+      position.entryId = listWords[0].id;
       draw(search.value);
+      saveProgress();
     });
     function clearSearch() {
       search.value = "";
@@ -548,6 +796,18 @@
       draw("");
       search.focus();
     }
+    function changeBatch(delta) {
+      dismissResume();
+      position.batch = Math.max(0, Math.min(Math.ceil(listWords.length / batchSize) - 1, position.batch + delta));
+      position.entryId = listWords[position.batch * batchSize].id;
+      stopAudio();
+      refreshRecording();
+      draw(search.value);
+      saveProgress();
+      focusContent();
+    }
+    previous.addEventListener("click", function () { changeBatch(-1); });
+    nextBatch.addEventListener("click", function () { changeBatch(1); });
     clear.addEventListener("click", clearSearch);
     reset.addEventListener("click", clearSearch);
     draw(search.value);
@@ -556,14 +816,14 @@
 
   function renderPractice() {
     if (!round.length || round[0].level !== level || round[0].mode !== view) {
-      startRound();
+      activateRound();
     }
     if (roundComplete) return renderSummary();
     var question = currentQuestion();
     var panel = el("section", "panel practice");
     panel.setAttribute("data-mode", view);
     var practiceHead = el("div", "practice-head");
-    practiceHead.appendChild(el("h2", null, practiceTitle(view)));
+    practiceHead.appendChild(el("h2", null, (practiceKind === "review" ? "復習 · " : "") + practiceTitle(view)));
     var score = el("p", "meta score", "正解 " + correctCount + " / " + round.length);
     practiceHead.appendChild(score);
     panel.appendChild(practiceHead);
@@ -622,7 +882,51 @@
     next.addEventListener("click", onNext);
     bar.appendChild(next);
     panel.appendChild(bar);
+    panel.appendChild(renderPracticeActions());
+    if (answered) paintAnswer(panel, answers[questionIndex]);
     return panel;
+  }
+
+  function renderPracticeActions() {
+    var actions = el("div", "practice-actions");
+    var restart = el("button", "secondary-button", "新しく10問を始める");
+    restart.type = "button";
+    restart.setAttribute("data-practice-restart", "");
+    var confirm = el("div", "restart-confirm");
+    confirm.hidden = true;
+    confirm.appendChild(el("p", null, "この練習を終了して、新しい10問を始めますか？"));
+    var yes = el("button", "secondary-button", "新しく始める");
+    yes.type = "button";
+    yes.setAttribute("data-confirm-restart", "");
+    yes.addEventListener("click", function () {
+      sessionSeed = fixedSeed;
+      startRound();
+      render();
+      focusContent();
+    });
+    var no = el("button", "secondary-button", "練習を続ける");
+    no.type = "button";
+    no.setAttribute("data-cancel-restart", "");
+    no.addEventListener("click", function () { confirm.hidden = true; restart.hidden = false; restart.focus(); });
+    confirm.appendChild(yes);
+    confirm.appendChild(no);
+    restart.addEventListener("click", function () { confirm.hidden = false; restart.hidden = true; no.focus(); });
+    actions.appendChild(restart);
+    actions.appendChild(confirm);
+    if (practiceKind === "review" && progress.sessions[level + ":" + view + ":normal"]) {
+      var back = el("button", "secondary-button", "通常の練習に戻る");
+      back.type = "button";
+      back.setAttribute("data-return-practice", "");
+      back.addEventListener("click", function () {
+        saveProgress();
+        progress.activeKinds[level + ":" + view] = "normal";
+        activateRound();
+        render();
+        focusContent();
+      });
+      actions.appendChild(back);
+    }
+    return actions;
   }
 
   function practiceTitle(mode) {
@@ -669,6 +973,14 @@
       panel.appendChild(review);
     }
     var actions = el("div", "summary-actions");
+    if (mistakes.length) {
+      var retry = el("button", "secondary-button", "今回の間違いだけ復習 · " + mistakes.length + " 語");
+      retry.type = "button";
+      retry.setAttribute("data-review-mistakes", "");
+      retry.addEventListener("click", function () { beginReview(mistakes.map(function (question) { return question.entryId; })); });
+      actions.appendChild(retry);
+    }
+    if (practiceKind === "review") panel.appendChild(renderPracticeActions());
     var restart = el("button", "next", "もう一度、10問");
     restart.type = "button";
     restart.setAttribute("data-restart", "");
@@ -695,32 +1007,48 @@
 
   function onChoose(index) {
     if (answered) return;
+    dismissResume();
     answered = true;
     var question = currentQuestion();
     var ok = window.HSK.scoreChoice(question, index);
-    if (ok) correctCount += 1;
-    else mistakes.push(question);
-    var feedback = app.querySelector("[data-feedback]");
+    answers[questionIndex] = index;
+    if (ok) {
+      correctCount += 1;
+      if (practiceKind === "review") progress.wrongIds = progress.wrongIds.filter(function (id) { return id !== question.entryId; });
+    } else {
+      mistakes.push(question);
+      if (progress.wrongIds.indexOf(question.entryId) === -1) progress.wrongIds.push(question.entryId);
+    }
+    saveProgress();
+    paintAnswer(app.querySelector(".practice"), index);
+    app.querySelector("[data-next]").focus({ preventScroll: true });
+    var review = app.querySelector(".review-controls");
+    if (review) review.replaceWith(renderReviewControls());
+  }
+
+  function paintAnswer(panel, index) {
+    var question = currentQuestion();
+    var ok = window.HSK.scoreChoice(question, index);
+    var feedback = panel.querySelector("[data-feedback]");
     feedback.textContent = ok ? "正解" : "不正解";
     feedback.setAttribute("data-result", ok ? "right" : "wrong");
     if (!ok) {
       var correct = question.choices.find(function (choice) { return choice.keyed; });
       feedback.insertAdjacentElement("afterend", el("p", "answer-explanation", "正しい答え：" + correct.text));
     }
-    var buttons = app.querySelectorAll(".choice");
+    var buttons = panel.querySelectorAll(".choice");
     Array.prototype.forEach.call(buttons, function (button) {
       var choiceIndex = Number(button.getAttribute("data-choice-index"));
       button.disabled = true;
       if (question.choices[choiceIndex].keyed) button.classList.add("is-right");
       if (choiceIndex === index && !ok) button.classList.add("is-wrong");
     });
-    var score = app.querySelector(".score");
+    var score = panel.querySelector(".score");
     score.textContent = "正解 " + correctCount + " / " + round.length;
-    app.querySelector(".progress-track").setAttribute("aria-valuenow", String(questionIndex + 1));
-    app.querySelector(".progress-fill").style.width = ((questionIndex + 1) / round.length * 100) + "%";
-    var next = app.querySelector("[data-next]");
+    panel.querySelector(".progress-track").setAttribute("aria-valuenow", String(questionIndex + 1));
+    panel.querySelector(".progress-fill").style.width = ((questionIndex + 1) / round.length * 100) + "%";
+    var next = panel.querySelector("[data-next]");
     next.disabled = false;
-    next.focus({ preventScroll: true });
     if (view === "hanzi") {
       var entry = null;
       var i;
@@ -745,6 +1073,37 @@
     focusContent();
   }
 
+  var scrollTimer;
+  function rememberVisibleWord() {
+    scrollTimer = null;
+    if (view !== "list" || (searchQueries[level] || "").trim()) return;
+    var toolbar = app.querySelector(".list-toolbar");
+    if (!toolbar) return;
+    var boundary = getComputedStyle(toolbar).position === "sticky" ? Math.max(0, toolbar.getBoundingClientRect().bottom) : 0;
+    var rows = app.querySelectorAll(".word");
+    for (var i = 0; i < rows.length; i += 1) {
+      var rect = rows[i].getBoundingClientRect();
+      if (rect.bottom > boundary + 12 && rect.top < window.innerHeight) {
+        rememberedPosition().entryId = Number(rows[i].getAttribute("data-entry-id"));
+        saveProgress();
+        break;
+      }
+    }
+  }
+  window.addEventListener("scroll", function () {
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(rememberVisibleWord, 150);
+  }, { passive: true });
+  function flushProgress() {
+    if (scrollTimer) {
+      clearTimeout(scrollTimer);
+      rememberVisibleWord();
+    }
+    saveProgress();
+  }
+  window.addEventListener("pagehide", flushProgress);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) flushProgress(); });
+  if (view !== "list") activateRound();
   render();
 })();
 

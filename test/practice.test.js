@@ -5,6 +5,23 @@ const { loadHsk } = require("./load-hsk");
 const CHOICE_FIELD = { gloss: "gloss", hanzi: "hanzi", pinyin: "pinyin" };
 const PROMPT_FIELD = { gloss: "hanzi", hanzi: "gloss", pinyin: "hanzi" };
 
+test("a one-word review uses full same-level distractors and rejects foreign targets", () => {
+  const { HSK, vocab } = loadHsk();
+  const target = vocab.find((entry) => entry.level === 1);
+  const foreign = vocab.find((entry) => entry.level === 2);
+  const byId = new Map(vocab.map((entry) => [entry.id, entry]));
+  for (const mode of ["gloss", "hanzi", "pinyin"]) {
+    const review = HSK.buildRound(vocab, 1, mode, 7, 1, [target.id]);
+    assert.equal(review.length, 1);
+    assert.equal(review[0].entryId, target.id);
+    assert.equal(review[0].choices.length, 4);
+    assert.equal(review[0].choices.filter((choice) => choice.keyed).length, 1);
+    assert.ok(review[0].choices.every((choice) => byId.get(choice.entryId).level === 1));
+    assert.equal(new Set(review[0].choices.map((choice) => choice.entryId)).size, 4);
+    assert.throws(() => HSK.buildRound(vocab, 1, mode, 7, 1, [foreign.id]), /outside level/);
+  }
+});
+
 test("three practices stay inside the selected level and score the keyed choice", () => {
   const { HSK, vocab } = loadHsk();
   const byId = new Map(vocab.map((entry) => [entry.id, entry]));
