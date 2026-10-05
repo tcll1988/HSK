@@ -51,6 +51,7 @@ async function snapshot(page) {
 
 async function listContinuity(page) {
   await page.locator('.levels [data-level="6"]').click();
+  await page.locator(".list-tools > summary").click();
   await page.locator("[data-word-order]").selectOption("random");
   const firstBatch = await ids(page);
   assert.equal(firstBatch.length, 20);
@@ -166,7 +167,7 @@ async function savedReview(page) {
   await page.locator("[data-return-list]").click();
   await page.reload({ waitUntil: "load" });
   await page.locator("[data-review-start]").click();
-  assert.equal(await page.locator(".progress-track").getAttribute("aria-valuemax"), "2", "a correct review answer must remove that saved wrong word");
+  assert.equal(await page.locator(".progress-track").getAttribute("aria-valuemax"), "2", "a correct review answer must defer that word until tomorrow");
   const remaining = wrongIds.filter((id) => id !== clearedId);
   for (let index = 0; index < 2; index += 1) {
     const current = await question(page);
@@ -176,7 +177,7 @@ async function savedReview(page) {
     await page.locator("[data-next]").click();
   }
   await page.locator("[data-return-list]").click();
-  assert.equal(await page.locator("[data-review-start]").isVisible(), false, "cleared wrong words must leave the review queue");
+  assert.equal(await page.locator("[data-review-start]").isVisible(), false, "passed words must leave today's due queue");
 }
 
 async function corruptStorage(page) {
@@ -208,6 +209,7 @@ async function unavailableStorage(page) {
   const mark = page.locator("[data-mark-learned]").first();
   await mark.click();
   assert.equal(await mark.getAttribute("aria-pressed"), "true");
+  await page.locator(".list-tools > summary").click();
   await page.locator("[data-word-order]").selectOption("random");
   await page.locator("[data-batch-next]").click();
   const batch = await ids(page);
@@ -249,11 +251,12 @@ async function mobileContinuity(page, width) {
 }
 
 async function runCase(browser, name, action, width = 1280, initialize) {
-  const context = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "reduce", hasTouch: width < 600, isMobile: width < 600 });
+  const context = await browser.newContext({ viewport: { width, height: 844 }, timezoneId: "Asia/Tokyo", reducedMotion: "reduce", hasTouch: width < 600, isMobile: width < 600 });
   if (initialize) await context.addInitScript(initialize);
   const page = await context.newPage();
   const errors = [];
   page.setDefaultTimeout(15000);
+  await page.clock.setFixedTime(new Date("2026-10-05T12:00:00+09:00"));
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   try {

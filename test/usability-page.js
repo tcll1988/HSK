@@ -130,6 +130,7 @@ async function assertPinyinOrder(page) {
 }
 
 async function orderingCase(page) {
+  await page.locator(".list-tools > summary").click();
   const order = page.locator("select[data-word-order]");
   const shuffle = page.locator("button[data-shuffle]");
   assert.equal(await order.inputValue(), "pinyin");
@@ -170,6 +171,7 @@ async function orderingCase(page) {
   await page.locator('.levels [data-level="1"]').click();
 
   await page.reload({ waitUntil: "load" });
+  await page.locator(".list-tools > summary").click();
   assert.equal(await order.inputValue(), "random", "selected order must persist after reload");
   assert.equal(await shuffle.isVisible(), true);
   sameEntries(await wordIds(page));
@@ -219,6 +221,7 @@ async function keyboardCase(page) {
 }
 
 async function mobileCase(page, width) {
+  await page.locator(".list-tools > summary").click();
   await noOverflow(page);
   await usableTargets(page);
   const order = page.locator("select[data-word-order]");

@@ -1,0 +1,89 @@
+[
+  {
+    "id": 1000,
+    "hanzi": "尽量",
+    "pinyin": "jìnliàng",
+    "audio": "audio/69/entry-1000.mp3"
+  },
+  {
+    "id": 2892,
+    "hanzi": "过",
+    "pinyin": "guo",
+    "audio": "audio/90/entry-2892.mp3",
+    "audioText": "去过"
+  },
+  {
+    "id": 3039,
+    "hanzi": "尽量",
+    "pinyin": "jǐnliàng",
+    "audio": "audio/69/entry-3039.mp3"
+  },
+  {
+    "id": 3903,
+    "hanzi": "得",
+    "pinyin": "děi",
+    "audio": "audio/78/entry-3903.mp3",
+    "gloss": "…しなければならない、…を要する"
+  },
+  {
+    "id": 3998,
+    "hanzi": "还",
+    "pinyin": "huán",
+    "audio": "audio/03/entry-3998.mp3"
+  },
+  {
+    "id": 4282,
+    "hanzi": "行",
+    "pinyin": "háng",
+    "audio": "audio/59/entry-4282.mp3"
+  },
+  {
+    "id": 4369,
+    "hanzi": "只",
+    "pinyin": "zhī",
+    "audio": "audio/29/entry-4369.mp3"
+  },
+  {
+    "id": 4459,
+    "hanzi": "地",
+    "pinyin": "dì",
+    "audio": "audio/23/entry-4459.mp3"
+  },
+  {
+    "id": 4689,
+    "hanzi": "长",
+    "pinyin": "zhǎng",
+    "audio": "audio/06/entry-4689.mp3"
+  },
+  {
+    "id": 4694,
+    "hanzi": "只",
+    "pinyin": "zhǐ",
+    "audio": "audio/29/entry-4694.mp3"
+  },
+  {
+    "id": 4716,
+    "hanzi": "长",
+    "pinyin": "cháng",
+    "audio": "audio/06/entry-4716.mp3"
+  },
+  {
+    "id": 4727,
+    "hanzi": "得",
+    "pinyin": "de",
+    "audio": "audio/78/entry-4727.mp3",
+    "audioText": "说得好"
+  },
+  {
+    "id": 4745,
+    "hanzi": "过",
+    "pinyin": "guò",
+    "audio": "audio/90/entry-4745.mp3"
+  },
+  {
+    "id": 4746,
+    "hanzi": "还",
+    "pinyin": "hái",
+    "audio": "audio/03/entry-4746.mp3"
+  }
+]

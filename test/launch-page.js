@@ -61,6 +61,7 @@ async function runOnce(browser, index) {
     }
   });
 
+  await page.clock.setFixedTime(new Date("2026-10-05T12:00:00+09:00"));
   await page.goto(pageUrl(), { waitUntil: "load" });
   const defaults = await page.evaluate(() => ({
     speed: document.querySelector("audio[data-player]").playbackRate,
@@ -68,7 +69,7 @@ async function runOnce(browser, index) {
     japaneseVisible: getComputedStyle(document.querySelector(".list .gloss")).display !== "none",
     separate: document.querySelector('[data-section="list"]') && !document.querySelector('[data-view="gloss"]')
   }));
-  if (defaults.speed !== 1 || !defaults.pinyinHidden || !defaults.japaneseVisible || !defaults.separate) {
+  if (defaults.speed !== 1 || defaults.pinyinHidden || !defaults.japaneseVisible || !defaults.separate) {
     throw new Error("study settings defaults or separate navigation are wrong");
   }
 

@@ -7,11 +7,14 @@ const root = path.resolve(__dirname, "..");
 const audioRoot = fs.realpathSync(path.join(root, "audio"));
 const context = vm.createContext({ window: {} });
 vm.runInContext(fs.readFileSync(path.join(root, "js", "hsk.js"), "utf8"), context);
+vm.runInContext(fs.readFileSync(path.join(root, "data", "vocab.js"), "utf8"), context);
 const audioSrc = context.window.HSK.audioSrc;
+const pronunciationEntries = new Map(context.window.HSK.prepareVocab(context.window.HSK_VOCAB)
+  .filter((entry) => entry.audio).map((entry) => [path.basename(entry.audio), entry]));
 
 function targetFor(filename) {
   const hanzi = filename.slice(0, -4);
-  const src = audioSrc(hanzi);
+  const src = audioSrc(pronunciationEntries.get(filename) || hanzi);
   const match = /^audio\/(\d{2})\//.exec(src);
   if (!match) throw new Error("Unexpected audio path: " + src);
   const folder = path.resolve(audioRoot, match[1]);

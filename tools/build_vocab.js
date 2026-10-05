@@ -15,6 +15,15 @@ vm.runInContext(
 const raw = JSON.parse(
   fs.readFileSync(path.join(root, "data", "vocab-raw.json"), "utf8")
 );
+// Keep reviewed readings and their recordings when rebuilding the workbook data.
+const pronunciationOverrides = require("./pronunciation-overrides.json");
+pronunciationOverrides.forEach(function (override) {
+  const entry = raw.find(function (item) { return Number(item.id) === override.id; });
+  if (!entry || entry.hanzi !== override.hanzi) {
+    throw new Error("Pronunciation override no longer matches id " + override.id);
+  }
+  Object.assign(entry, override);
+});
 const vocab = window.HSK.prepareVocab(raw);
 const counts = {};
 vocab.forEach(function (entry) {

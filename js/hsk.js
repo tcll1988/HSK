@@ -44,7 +44,7 @@
           throw new Error("missing " + key + " on id " + entry.id);
         }
       });
-      return {
+      var prepared = {
         id: id,
         pinyin: entry.pinyin,
         hanzi: entry.hanzi,
@@ -52,6 +52,14 @@
         pos: entry.pos,
         gloss: repairGloss(entry.gloss)
       };
+      if (entry.audio != null) {
+        if (typeof entry.audio !== "string" || !new RegExp("^audio/\\d{2}/entry-" + id + "\\.mp3$").test(entry.audio)) {
+          throw new Error("bad pronunciation audio on id " + id);
+        }
+        prepared.audio = entry.audio;
+        if (typeof entry.audioText === "string" && entry.audioText.length > 0) prepared.audioText = entry.audioText;
+      }
+      return prepared;
     });
   }
 
@@ -147,6 +155,13 @@
     var hanzi = entry && typeof entry === "object" ? entry.hanzi : entry;
     if (typeof hanzi !== "string" || hanzi.length === 0) {
       throw new Error("missing hanzi for audio");
+    }
+    // Readings such as 长 zhǎng/cháng need different clips even with identical hanzi.
+    if (entry && typeof entry === "object" && entry.audio != null) {
+      if (!new RegExp("^audio/\\d{2}/entry-" + Number(entry.id) + "\\.mp3$").test(entry.audio)) {
+        throw new Error("bad pronunciation audio on id " + entry.id);
+      }
+      return entry.audio;
     }
     // FNV-1a over UTF-16 code units keeps the folder stable for each headword.
     var hash = 2166136261;

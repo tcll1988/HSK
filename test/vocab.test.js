@@ -1,8 +1,64 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
-const { loadHsk } = require("./load-hsk");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const { createRequire } = require("node:module");
+const pronunciationOverrides = require("../tools/pronunciation-overrides.json");
+const { loadHsk, root } = require("./load-hsk");
 
 const EXPECTED = { 1: 148, 2: 147, 3: 298, 4: 586, 5: 1311, 6: 2513 };
+
+test("noun 地, row-counter 行, and modal 得 have matching readings and meanings", () => {
+  const { vocab } = loadHsk();
+  const earth = vocab.find((entry) => entry.id === 4459);
+  assert.equal(earth.hanzi, "地");
+  assert.equal(earth.pinyin, "dì");
+  assert.equal(earth.gloss, "土地、地面");
+  const row = vocab.find((entry) => entry.id === 4282);
+  assert.equal(row.hanzi, "行");
+  assert.equal(row.pinyin, "háng");
+  assert.equal(row.pos, "量");
+  const must = vocab.find((entry) => entry.id === 3903);
+  assert.equal(must.pinyin, "děi");
+  assert.match(must.gloss, /しなければならない/);
+  assert.equal(must.gloss.includes("得る"), false, "dé meaning should not be tested as děi");
+});
+
+test("shipped vocabulary retains the corrections used by workbook rebuilds", () => {
+  const { vocab } = loadHsk();
+  pronunciationOverrides.forEach((override) => {
+    const entry = vocab.find((item) => item.id === override.id);
+    Object.keys(override).forEach((key) => assert.equal(entry[key], override[key], override.id + " " + key));
+  });
+});
+
+test("workbook rebuild reapplies reviewed readings and audio without editing the source workbook", () => {
+  const { raw } = loadHsk();
+  const workbookRows = JSON.parse(JSON.stringify(raw));
+  workbookRows.forEach((entry) => { delete entry.audio; delete entry.audioText; });
+  workbookRows.find((entry) => entry.id === 4459).pinyin = "de";
+  workbookRows.find((entry) => entry.id === 4282).pinyin = "xíng";
+  workbookRows.find((entry) => entry.id === 3903).gloss = "要する[dei3]；得る[de2]";
+  const script = path.join(root, "tools", "build_vocab.js");
+  const scriptRequire = createRequire(script);
+  let generated;
+  const fixtureFs = Object.assign({}, fs, {
+    readFileSync(filename, encoding) {
+      if (filename === path.join(root, "data", "vocab-raw.json")) return JSON.stringify(workbookRows);
+      return fs.readFileSync(filename, encoding);
+    },
+    writeFileSync(filename, contents) {
+      assert.equal(filename, path.join(root, "data", "vocab.js"));
+      generated = contents;
+    }
+  });
+  vm.runInNewContext(fs.readFileSync(script, "utf8"), {
+    require(name) { return name === "fs" ? fixtureFs : scriptRequire(name); },
+    __dirname: path.dirname(script), console: { log() {} }
+  }, { filename: script });
+  assert.equal(generated, fs.readFileSync(path.join(root, "data", "vocab.js"), "utf8"));
+});
 
 test("shipped vocabulary keeps every workbook field and the six level counts", () => {
   const { HSK, raw, vocab } = loadHsk();
