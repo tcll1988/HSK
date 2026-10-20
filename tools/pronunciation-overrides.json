@@ -1,9 +1,68 @@
 [
   {
+    "id": 16,
+    "hanzi": "熬",
+    "pinyin": "áo",
+    "audioText": "熬夜"
+  },
+  {
+    "id": 88,
+    "hanzi": "甭",
+    "pinyin": "béng",
+    "audioText": "甭管"
+  },
+  {
+    "id": 227,
+    "hanzi": "搀",
+    "pinyin": "chān",
+    "audioText": "搀扶"
+  },
+  {
+    "id": 343,
+    "hanzi": "刺",
+    "pinyin": "cì",
+    "audioText": "刺痛"
+  },
+  {
+    "id": 353,
+    "hanzi": "窜",
+    "pinyin": "cuàn",
+    "audioText": "逃窜"
+  },
+  {
     "id": 1000,
     "hanzi": "尽量",
     "pinyin": "jìnliàng",
     "audio": "audio/69/entry-1000.mp3"
+  },
+  {
+    "id": 1324,
+    "hanzi": "捏",
+    "pinyin": "niē",
+    "audioText": "捏紧"
+  },
+  {
+    "id": 1325,
+    "hanzi": "拧",
+    "pinyin": "níng",
+    "audioText": "拧干"
+  },
+  {
+    "id": 1342,
+    "hanzi": "趴",
+    "pinyin": "pā",
+    "audioText": "趴下"
+  },
+  {
+    "id": 2690,
+    "hanzi": "呆",
+    "pinyin": "dāi",
+    "audioText": "发呆"
+  },
+  {
+    "id": 2870,
+    "hanzi": "光滑",
+    "pinyin": "guānghuá"
   },
   {
     "id": 2892,
@@ -17,6 +76,12 @@
     "hanzi": "尽量",
     "pinyin": "jǐnliàng",
     "audio": "audio/69/entry-3039.mp3"
+  },
+  {
+    "id": 3703,
+    "hanzi": "脏",
+    "pinyin": "zāng",
+    "audioText": "很脏"
   },
   {
     "id": 3903,
@@ -36,6 +101,12 @@
     "hanzi": "行",
     "pinyin": "háng",
     "audio": "audio/59/entry-4282.mp3"
+  },
+  {
+    "id": 4297,
+    "hanzi": "血",
+    "pinyin": "xuè",
+    "audioText": "血液"
   },
   {
     "id": 4369,
@@ -66,6 +137,12 @@
     "hanzi": "长",
     "pinyin": "cháng",
     "audio": "audio/06/entry-4716.mp3"
+  },
+  {
+    "id": 4721,
+    "hanzi": "次",
+    "pinyin": "cì",
+    "audioText": "一次"
   },
   {
     "id": 4727,

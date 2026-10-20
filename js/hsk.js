@@ -57,8 +57,8 @@
           throw new Error("bad pronunciation audio on id " + id);
         }
         prepared.audio = entry.audio;
-        if (typeof entry.audioText === "string" && entry.audioText.length > 0) prepared.audioText = entry.audioText;
       }
+      if (typeof entry.audioText === "string" && entry.audioText.length > 0) prepared.audioText = entry.audioText;
       return prepared;
     });
   }
@@ -183,6 +183,13 @@
     return question.choices[choiceIndex].keyed === true;
   }
 
+  // Change this when replacing recordings so returning learners hear the
+  // current release instead of an MP3 retained in their browser cache.
+  var AUDIO_VERSION = "20261020-voice-v2";
+  function audioPlaybackSrc(entry) {
+    return audioSrc(entry) + "?v=" + AUDIO_VERSION;
+  }
+
   window.HSK = {
     MODES: MODES,
     repairGloss: repairGloss,
@@ -191,6 +198,8 @@
     buildRound: buildRound,
     seededRandom: mulberry32,
     audioSrc: audioSrc,
+    audioPlaybackSrc: audioPlaybackSrc,
+    AUDIO_VERSION: AUDIO_VERSION,
     scoreChoice: scoreChoice
   };
 })();

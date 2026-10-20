@@ -1,0 +1,97 @@
+name: Verify published HSK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "css/**"
+      - "js/**"
+      - "data/**"
+      - "audio/**"
+      - "test/**"
+      - "tools/audit_voice_release.py"
+      - "tools/wait_for_pages.py"
+      - "package*.json"
+      - ".github/workflows/verify-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: hsk-published-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HSK_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install test dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+      - name: Run all unit tests and pronunciation checks
+        env:
+          NODE_OPTIONS: --test-isolation=none
+        run: |
+          mkdir -p "$RUNNER_TEMP/hsk-checks"
+          npm test | tee "$RUNNER_TEMP/hsk-checks/unit.log"
+          node tools/audit_pronunciation.js | tee "$RUNNER_TEMP/hsk-checks/pronunciation.log"
+      - name: Wait for the published application
+        run: python3 tools/wait_for_pages.py "$HSK_BASE_URL"
+      - name: Verify every published recording
+        run: |
+          python3 tools/audit_voice_release.py --decode --base-url "$HSK_BASE_URL" \
+            --report "$RUNNER_TEMP/hsk-checks/audio.json"
+      - name: Run all browser cases against the published site
+        run: |
+          unset HSK_LEARNING_CASE
+          npm run test:browser -- "$RUNNER_TEMP/hsk-checks/usability"
+          npm run test:continuity -- "$RUNNER_TEMP/hsk-checks/continuity"
+          npm run test:learning -- "$RUNNER_TEMP/hsk-checks/learning"
+      - name: Confirm complete test coverage
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "hsk-checks"
+          unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "unit.log").read_text())
+          for label, count in [("tests", 22), ("pass", 22), ("fail", 0), ("skipped", 0)]:
+              assert re.search(rf"\b{label}\s+{count}\b", unit), (label, count)
+          for suite, count in [("usability", 8), ("continuity", 7), ("learning", 10)]:
+              text = (root / suite / f"{suite}.log").read_text()
+              assert f"{count} cases passed; pageErrors=0; consoleErrors=0" in text, suite
+          audio = json.loads((root / "audio.json").read_text())
+          assert audio["published_mp3_files_verified"] == 5009
+          assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
+          summary = (
+              f"Verified commit: `{os.environ['GITHUB_SHA']}`\n\n"
+              "22 unit tests and all 25 browser cases passed.\n\n"
+              "All 5,009 published MP3 files matched their release checksums and decoded successfully.\n"
+          )
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary)
+          print(summary)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hsk-published-site-${{ github.sha }}
+          path: ${{ runner.temp }}/hsk-checks
+          retention-days: 7

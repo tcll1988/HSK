@@ -270,7 +270,7 @@ async function countAudioCalls(page) {
 async function audioPlaying(page, row, hanzi) {
   await page.waitForFunction((word) => {
     const player = document.querySelector("audio[data-player]");
-    return decodeURIComponent(player.currentSrc || player.src).endsWith("/" + word + ".mp3") && !player.paused && player.readyState >= 2;
+    return decodeURIComponent(new URL(player.currentSrc || player.src).pathname).endsWith("/" + word + ".mp3") && !player.paused && player.readyState >= 2;
   }, hanzi);
   assert.equal(await row.evaluate((node) => node.classList.contains("is-playing")), true);
 }
@@ -384,13 +384,13 @@ async function touchAudioGuardsCase(page) {
   await page.locator(".search").fill("昨天");
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
-  await page.route("**/*.mp3", async (route) => {
+  await page.route((url) => url.pathname.endsWith(".mp3"), async (route) => {
     await pending;
     await route.continue();
   });
   try {
     await Promise.all([
-      page.waitForRequest((request) => request.url().endsWith(".mp3")),
+      page.waitForRequest((request) => new URL(request.url()).pathname.endsWith(".mp3")),
       hanzi.tap()
     ]);
     assert.equal(await page.evaluate(() => window.__hskTestPlayCount), 1);

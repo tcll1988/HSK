@@ -1,5 +1,11 @@
 # Pronunciation corrections and asset provenance
 
+The pronunciation mappings below remain in use. The current audio files have
+since been replaced by the site owner's approved slow synthetic voice; see
+[the voice release record](voice-release.md) for current provenance and checks.
+The VITS generation details later in this document describe the earlier
+pronunciation-correction release, not the currently deployed voice.
+
 This update audits the eight repeated headwords in the 5,003-row vocabulary.
 Six have different readings and must not share a recording. 等 and 对 retain
 their shared recordings because their respective readings are identical.
@@ -24,7 +30,7 @@ The reviewed fields are also kept in `tools/pronunciation-overrides.json`.
 `node tools/build_vocab.js` reapplies this file after importing the original
 workbook data, so rebuilding does not lose corrections or pronunciation paths.
 
-## Generated clips
+## Original generated clips (historical)
 
 The 14 `audio/NN/entry-ID.mp3` clips are **synthetic speech**, generated locally
 using the public Mandarin model `vits-icefall-zh-aishell3` distributed by

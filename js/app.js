@@ -55,7 +55,7 @@
   var audioError = "";
   var playback = window.HSK_AUDIO.create({
     player: player,
-    resolveSrc: function (entry) { return window.HSK.audioSrc(entry); },
+    resolveSrc: function (entry) { return window.HSK.audioPlaybackSrc(entry); },
     onChange: function (state) {
       nowPlaying = state.entry ? state.entry.hanzi + (state.entry.audioText ? "（例：" + state.entry.audioText + "）" : "") : "";
       markButtons();

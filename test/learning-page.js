@@ -295,7 +295,7 @@ async function timedReviewCase(page) {
 async function batchAudioCase(page) {
   const expected = await page.locator(".word").evaluateAll((rows) => rows.map((row) => {
     const entry = window.HSK_PAGE.vocab.find((item) => item.id === Number(row.dataset.entryId));
-    return new URL(window.HSK.audioSrc(entry), location.href).href;
+    return new URL(window.HSK.audioPlaybackSrc(entry), location.href).href;
   }));
   await (await reveal(page, "[data-audio-repeat]")).selectOption("1");
   await (await reveal(page, "[data-audio-gap]")).selectOption("0");
@@ -343,7 +343,7 @@ async function pronunciationCase(page) {
   assert.equal(await readings.count(), 2, "both readings of the same written word must remain searchable");
   const entries = await readings.evaluateAll((rows) => rows.map((row) => {
     const entry = window.HSK_PAGE.vocab.find((item) => item.id === Number(row.dataset.entryId));
-    return { id: entry.id, source: new URL(window.HSK.audioSrc(entry), location.href).href };
+    return { id: entry.id, source: new URL(window.HSK.audioPlaybackSrc(entry), location.href).href };
   }));
   assert.equal(new Set(entries.map((entry) => entry.source)).size, 2, "different readings require different recordings");
   async function plays(source) {
@@ -359,12 +359,12 @@ async function pronunciationCase(page) {
     assert.equal(await row.locator(".listen").getAttribute("aria-pressed"), "true");
     assert.equal(await page.locator('.word.is-playing[data-hanzi="长"]').count(), 1, "playing one reading must not mark both as active");
   }
-  for (const [id, hanzi, context] of [[2892, "过", "去过"], [4727, "得", "说得好"]]) {
+  for (const [id, hanzi, context] of [[2892, "过", "去过"], [4727, "得", "说得好"], [4721, "次", "一次"], [4297, "血", "血液"], [2690, "呆", "发呆"], [3703, "脏", "很脏"], [343, "刺", "刺痛"], [16, "熬", "熬夜"], [88, "甭", "甭管"], [227, "搀", "搀扶"], [353, "窜", "逃窜"], [1324, "捏", "捏紧"], [1325, "拧", "拧干"], [1342, "趴", "趴下"]]) {
     await page.locator(".search").fill(hanzi);
     const row = page.locator('.word[data-entry-id="' + id + '"]');
     assert.match(await row.locator(".audio-note").innerText(), new RegExp(context));
     assert.match(await row.locator(".listen").getAttribute("aria-label"), new RegExp(context));
-    const source = await page.evaluate((entryId) => new URL(window.HSK.audioSrc(window.HSK_PAGE.vocab.find((entry) => entry.id === entryId)), location.href).href, id);
+    const source = await page.evaluate((entryId) => new URL(window.HSK.audioPlaybackSrc(window.HSK_PAGE.vocab.find((entry) => entry.id === entryId)), location.href).href, id);
     await row.locator(".hanzi").click();
     await plays(source);
     assert.match(await page.locator('[data-role="recording"]').innerText(), new RegExp(context), "the playing indicator must explain contextual audio");

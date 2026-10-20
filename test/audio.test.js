@@ -55,7 +55,32 @@ test("prepared vocabulary preserves pronunciation metadata across repeated prepa
   corrected.forEach((entry) => assert.equal(HSK.audioSrc(entry), entry.audio));
   assert.equal(twice.find((entry) => entry.id === 2892).audioText, "去过");
   assert.equal(twice.find((entry) => entry.id === 4727).audioText, "说得好");
+  assert.equal(twice.find((entry) => entry.id === 4721).audioText, "一次");
+  assert.equal(twice.find((entry) => entry.id === 4297).audioText, "血液");
+  assert.equal(twice.find((entry) => entry.id === 2690).audioText, "发呆");
+  assert.equal(twice.find((entry) => entry.id === 3703).audioText, "很脏");
+  assert.equal(twice.find((entry) => entry.id === 343).audioText, "刺痛");
+  assert.equal(twice.find((entry) => entry.id === 16).audioText, "熬夜");
+  assert.equal(twice.find((entry) => entry.id === 88).audioText, "甭管");
+  assert.equal(twice.find((entry) => entry.id === 227).audioText, "搀扶");
+  assert.equal(twice.find((entry) => entry.id === 4721).audio, undefined, "context notes also work with a headword-based recording");
+  assert.equal(twice.find((entry) => entry.id === 353).audioText, "逃窜");
+  assert.equal(twice.find((entry) => entry.id === 1324).audioText, "捏紧");
+  assert.equal(twice.find((entry) => entry.id === 1325).audioText, "拧干");
+  assert.equal(twice.find((entry) => entry.id === 1342).audioText, "趴下");
   const invalid = Object.assign({}, raw[0], { audio: "audio/00/entry-99999.mp3" });
   assert.throws(() => HSK.prepareVocab([invalid]), /bad pronunciation audio/);
   assert.throws(() => HSK.audioSrc(invalid), /bad pronunciation audio/);
+});
+
+test("playback uses the current recording release without changing asset paths or readings", () => {
+  const { HSK, vocab } = loadHsk();
+  const readings = vocab.filter((entry) => entry.hanzi === "长");
+  const urls = readings.map((entry) => new URL(HSK.audioPlaybackSrc(entry), "https://example.test/HSK/"));
+  assert.equal(new Set(urls.map((url) => url.pathname)).size, 2);
+  urls.forEach((url, index) => {
+    assert.equal(url.searchParams.get("v"), "20261020-voice-v2");
+    assert.equal(decodeURIComponent(url.pathname), "/HSK/" + decodeURIComponent(HSK.audioSrc(readings[index])));
+    assert.ok(fs.existsSync(path.join(root, decodeURIComponent(HSK.audioSrc(readings[index])))));
+  });
 });
