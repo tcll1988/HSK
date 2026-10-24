@@ -7,7 +7,7 @@
     "test:browser": "node test/usability-page.js",
     "test:continuity": "node test/continuity-page.js",
     "test:learning": "node test/learning-page.js",
-    "test:game": "node --test test/game.test.js",
+    "test:game": "node --test test/game.test.js test/game-questions.test.js",
     "test:game-browser": "node test/game-page.js"
   },
   "devDependencies": {

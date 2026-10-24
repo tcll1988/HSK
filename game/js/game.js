@@ -41,6 +41,7 @@
     STAGE_NAMES = STAGES.map(function (s) { return s.name; });
     byStage = STAGES.map(function (s) { return s.words; });
     byId = {}; WORDS.forEach(function (w) { byId[w.id] = w; });
+    QG = GameQuestions.create(WORDS, byStage);
     LV = save.levels[l];
     if (LV.unlocked >= NSTAGE) LV.unlocked = NSTAGE - 1;
     save.level = l; store();
@@ -143,66 +144,9 @@
     listen: { label: 'リスニング：聞こえた単語は？', cls: 'zh', opt: 'zh' },
     tone: { label: '声調：正しいのはどれ？', cls: 'zh', opt: 'py' }
   };
-  // 意味が近く、選択肢に並ぶと紛らわしい組み合わせ（意味問題では同時に出さない）
-  var CONFUSE = [['会', '能'], ['几', '多少'], ['很', '太'], ['看', '看见', '读'], ['老师', '先生'], ['想', '爱', '喜欢'], ['他', '她'], ['那', '那儿'], ['哪', '哪儿'], ['这', '这儿']];
-  function confusable(a, b) { return CONFUSE.some(function (g) { return g.indexOf(a.h) >= 0 && g.indexOf(b.h) >= 0; }); }
-  function distractorWords(w, n, test) {
-    var pool = shuffle((byStage[w.s] || []).filter(function (x) { return x !== w && test(x); }));
-    var others = shuffle(WORDS.filter(function (x) { return x.s !== w.s && test(x); }));
-    return pool.concat(others).slice(0, n);
-  }
-  function toneVariants(w) {
-    var idx = []; w.syl.forEach(function (s, i) { if (s.tone >= 1 && s.tone <= 4) idx.push(i); });
-    if (!idx.length) return [];
-    var out = {}, list = [];
-    out[w.pinyin] = 1;
-    var tries = 0;
-    while (list.length < 3 && tries++ < 200) {
-      var syl = w.syl.map(function (s) { return { base: s.base, tone: s.tone, sep: s.sep, cap: s.cap }; });
-      var k = tries > 40 && idx.length > 1 ? 2 : 1;
-      shuffle(idx).slice(0, k).forEach(function (i) { var t; do { t = 1 + Math.floor(Math.random() * 4); } while (t === w.syl[i].tone); syl[i].tone = t; });
-      var r = Pinyin.render(syl);
-      if (r && !out[r]) { out[r] = 1; list.push(r); }
-    }
-    return list;
-  }
-  function makeQuestion(w, type) {
-    var opts, answer, main, sub = '';
-    if (type === 'tone' && !w.toneable) type = 'h2py';
-    if (type === 'listen' && !w.listenable) type = 'h2ja';
-    if (type === 'h2ja') {
-      main = w.h; answer = w.ja;
-      opts = distractorWords(w, 3, function (x) { return x.ja !== w.ja && !confusable(w, x); }).map(function (x) { return x.ja; });
-    } else if (type === 'h2py') {
-      main = w.h; answer = w.pinyin;
-      // 声調ちがい1つ＋同じ音節数のほかの単語（長さで答えがわからないように）
-      var d = toneVariants(w).slice(0, 1), n = w.nsyl;
-      var same = distractorWords(w, 40, function (x) { return x.pinyin !== w.pinyin && x.nsyl === n; });
-      var rest = distractorWords(w, 40, function (x) { return x.pinyin !== w.pinyin && Math.abs(x.nsyl - n) === 1; });
-      same.concat(rest).forEach(function (x) { if (d.length < 3 && d.indexOf(x.pinyin) < 0) d.push(x.pinyin); });
-      opts = d;
-    } else if (type === 'ja2h') {
-      main = w.ja; answer = w.h;
-      opts = [];
-      distractorWords(w, 40, function (x) { return x.ja !== w.ja && x.h !== w.h && !confusable(w, x); }).forEach(function (x) { if (opts.length < 3 && opts.indexOf(x.h) < 0) opts.push(x.h); });
-    } else if (type === 'listen') {
-      main = ''; answer = w.h;
-      // 同音語（例：他／她）は除外する
-      opts = [];
-      distractorWords(w, 40, function (x) { return x.plain.toLowerCase() !== w.plain.toLowerCase() && x.h !== w.h; }).forEach(function (x) { if (opts.length < 3 && opts.indexOf(x.h) < 0) opts.push(x.h); });
-    } else if (type === 'tone') {
-      main = w.h; sub = w.plain; answer = w.pinyin; opts = toneVariants(w);
-    }
-    var all = shuffle([answer].concat(opts.slice(0, 3)));
-    var key = type === 'h2ja' ? 'ja' : type === 'h2py' || type === 'tone' ? 'pinyin' : 'h';
-    var owners = all.map(function (c) {
-      if (c === answer) return w;
-      if (type === 'tone') return null;
-      for (var k = 0; k < WORDS.length; k++) if (WORDS[k][key] === c) return WORDS[k];
-      return null;
-    });
-    return { word: w, type: type, main: main, sub: sub, choices: all, owners: owners, answer: all.indexOf(answer) };
-  }
+  // 問題と選択肢は game/js/questions.js（多音字・同じ意味の選択肢を避ける）
+  var QG = null;
+  function makeQuestion(w, type) { return QG.make(w, type); }
 
   /* ---------- 画面 ---------- */
   function show(id) {
@@ -317,13 +261,13 @@
     { type: 'listen', tip: 'ボスは<b>リスニング</b>で攻撃してくる！🔊で何度でも聞けるよ。聞こえた単語を選ぼう。' },
     { type: 'tone', tip: '最後は<b>声調</b>問題。ピンインは同じで、声調だけがちがう4つから選ぼう。ここまでできたらステージ1へ！' }
   ];
-  var TUT_L1 = ['你', '谢谢', '我', '再见', '一'];
+  var TUT_L1 = ['你', '谢谢', '我', '再见', '中国'];
   function wordByH(h) { for (var i = 0; i < WORDS.length; i++) if (WORDS[i].h === h) return WORDS[i]; }
   function tutorialWords() {
     if (LEVEL === 1) return TUT_L1.map(wordByH);
     var used = [], ws = byStage[0].concat(byStage[1] || []);
     return TUT_TIPS.map(function (t) {
-      var w = ws.filter(function (x) { return used.indexOf(x) < 0 && (t.type !== 'listen' || x.listenable) && (t.type !== 'tone' || x.toneable); })[0] || ws[0];
+      var w = ws.filter(function (x) { return used.indexOf(x) < 0 && (t.type !== 'listen' || x.listenable) && (t.type !== 'tone' || QG.canTone(x)); })[0] || ws[0];
       used.push(w); return w;
     });
   }
@@ -406,7 +350,7 @@
     }
     if (g.phase === 'boss') {
       var bt = (g.bossTry || 0) % 5 < 3 ? 'listen' : 'tone';
-      var cand = g.words.filter(function (w) { return bt === 'listen' ? w.listenable : w.toneable; });
+      var cand = g.words.filter(function (w) { return bt === 'listen' ? w.listenable : QG.canTone(w); });
       item = { w: pick(cand.length ? cand : g.words), type: bt, kind: 'boss' };
       g.bossTry = (g.bossTry || 0) + 1;
     }

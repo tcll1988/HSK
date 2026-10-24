@@ -10,7 +10,7 @@ const root = path.join(__dirname, "..");
 function loadGame() {
   const window = {};
   const context = vm.createContext({ window: window, globalThis: window });
-  for (const file of ["js/hsk.js", "data/vocab.js", "game/js/pinyin.js", "game/js/levels.js"]) {
+  for (const file of ["js/hsk.js", "data/vocab.js", "game/js/pinyin.js", "game/js/readings.js", "game/js/questions.js", "game/js/levels.js"]) {
     vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context, { filename: file });
   }
   return window;
@@ -68,7 +68,7 @@ test("game page loads the shared site scripts and no speech synthesis", () => {
   assert.match(html, /src="\.\.\/js\/hsk\.js/);
   assert.match(html, /src="\.\.\/data\/vocab\.js/);
   assert.match(html, /href="\.\.\/"/);
-  for (const file of ["game/js/game.js", "game/js/levels.js"]) {
+  for (const file of ["game/js/game.js", "game/js/levels.js", "game/js/questions.js"]) {
     assert.doesNotMatch(fs.readFileSync(path.join(root, file), "utf8"), /speechSynthesis|SpeechSynthesisUtterance/);
   }
 });
