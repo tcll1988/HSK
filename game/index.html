@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1b1b2f">
 <title>HSKもじバトル — HSK単語で戦うゲーム</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 fill=%22%23e63946%22/%3E%3Ctext x=%228%22 y=%2213%22 font-size=%2212%22 text-anchor=%22middle%22 fill=%22%23ffd166%22%3E字%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/style.css?v=20261024-site">
+<link rel="stylesheet" href="css/style.css?v=20261024-r2">
 </head>
 <body>
 <div id="app">
@@ -18,7 +18,8 @@
     <div class="level-picker" role="group" aria-label="HSKの級"></div>
     <div class="menu">
       <button class="btn big primary" id="btn-start">▶ はじめる</button>
-      <button class="btn big" id="btn-review">✎ まちがえた単語を復習</button>
+      <button class="btn big" id="btn-review" aria-describedby="review-note">✎ まちがえた単語を復習</button>
+      <small class="review-note" id="review-note"></small>
       <button class="btn" id="btn-settings">⚙ 設定</button>
     </div>
     <p class="hint desktop-only">キーボード：1〜4で解答／スペースで音声</p>
@@ -34,6 +35,7 @@
     <p class="select-info" id="select-info"></p>
     <div id="stage-pager" class="stage-pager"></div>
     <div id="stage-list" class="stage-list"></div>
+    <div id="stage-pager2" class="stage-pager"></div>
     <a class="back-site" href="../">← HSK単語サイトにもどる</a>
   </section>
 
@@ -43,6 +45,7 @@
     <div class="panel">
       <label class="row"><input type="checkbox" id="set-timer"> タイマーあり（時間切れはミス）</label>
       <label class="row"><input type="checkbox" id="set-autoplay"> 答えたあとに単語の発音を流す</label>
+      <label class="row"><input type="checkbox" id="set-sfx"> 効果音（正解・ミスの音）</label>
       <label class="row">再生の速さ <select id="set-speed"><option value="0.75">0.75倍</option><option value="1">1倍（ふつう）</option><option value="1.25">1.25倍</option></select></label>
       <button class="btn" id="btn-voicetest">🔊 音声テスト</button>
       <p class="voice-note" id="voice-note2"></p>
@@ -61,7 +64,7 @@
         <div id="hud-score" class="score">0</div>
       </div>
       <div id="banner" class="banner"></div>
-      <button id="btn-pause" class="btn small pause" aria-label="ポーズ">Ⅱ</button>
+      <button id="btn-pause" class="btn small pause" aria-label="ポーズ" aria-haspopup="dialog">Ⅱ</button>
     </div>
     <div class="timer"><div id="timer-fill"></div></div>
     <div class="quiz">
@@ -70,8 +73,8 @@
       <div id="q-main" class="q-main"></div>
       <div id="audio-note" class="audio-note" role="status"></div>
       <div id="q-sub" class="q-sub"></div>
-      <button id="btn-play" class="btn play" aria-label="もう一度聞く">🔊 もう一度聞く</button>
       <div id="q-feedback" class="q-feedback" aria-live="polite"></div>
+      <button id="btn-continue" class="btn primary continue" type="button">つぎへ ▶</button>
       <div id="choices" class="choices"></div>
     </div>
   </section>
@@ -80,15 +83,15 @@
   <section id="scr-result" class="screen">
     <div class="panel result">
       <h2 id="res-title"></h2>
-      <div class="res-stats">
+      <div class="res-stats" id="res-stats">
         <div><span>正答率</span><b id="res-acc"></b></div>
         <div><span>スコア</span><b id="res-score"></b></div>
         <div><span>ベスト</span><b id="res-best"></b></div>
       </div>
       <p id="res-unlock" class="res-unlock"></p>
-      <h3>今回まちがえた単語</h3>
+      <h3 class="res-list">今回まちがえた単語</h3>
       <ul id="res-miss" class="word-list"></ul>
-      <h3>よくまちがえる単語（これまでの記録）</h3>
+      <h3 class="res-list" id="res-top-h">よくまちがえる単語（これまでの記録）</h3>
       <ul id="res-top" class="word-list"></ul>
       <div class="menu">
         <button class="btn big primary" id="btn-next">つぎのステージへ ▶</button>
@@ -100,9 +103,9 @@
   </section>
 
   <!-- ポーズ -->
-  <div id="pause" class="modal">
+  <div id="pause" class="modal" role="dialog" aria-modal="true" aria-labelledby="pause-title">
     <div class="panel">
-      <h2>ポーズ</h2>
+      <h2 id="pause-title">ポーズ</h2>
       <div class="menu">
         <button class="btn big primary" id="btn-resume">つづける</button>
         <button class="btn" id="btn-quit">ステージ選択にもどる</button>
@@ -112,9 +115,9 @@
 </div>
 <script src="../js/hsk.js?v=20261020-voice-v2"></script>
 <script src="../data/vocab.js?v=20261020-voice-v2"></script>
-<script src="js/pinyin.js?v=20261024-site"></script>
-<script src="js/levels.js?v=20261024-site"></script>
-<script src="js/art.js?v=20261024-site"></script>
-<script src="js/game.js?v=20261024-site"></script>
+<script src="js/pinyin.js?v=20261024-r2"></script>
+<script src="js/levels.js?v=20261024-r2"></script>
+<script src="js/art.js?v=20261024-r2"></script>
+<script src="js/game.js?v=20261024-r2"></script>
 </body>
 </html>

@@ -582,7 +582,7 @@
     copy.appendChild(el("h1", null, "ことばを、ひとつずつ。"));
     copy.appendChild(el("p", null, "見て、聞いて、確かめる。自分のペースで中国語を学ぼう。"));
     var game = el("a", "game-entry", "🎮 ゲームで単語バトル（HSKもじバトル）");
-    game.href = "game/";
+    game.href = "game/?level=" + encodeURIComponent(String(level));
     game.setAttribute("data-game-link", "");
     copy.appendChild(game);
     head.appendChild(copy);
