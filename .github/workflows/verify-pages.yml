@@ -82,7 +82,7 @@ jobs:
               text = (root / suite / f"{suite}.log").read_text()
               assert f"{count} cases passed; pageErrors=0; consoleErrors=0" in text, suite
           game_unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "game-unit.log").read_text())
-          for label, count in [("tests", 5), ("pass", 5), ("fail", 0)]:
+          for label, count in [("tests", 9), ("pass", 9), ("fail", 0)]:
               assert re.search(rf"\b{label}\s+{count}\b", game_unit), ("game", label, count)
           assert "4 game cases passed; pageErrors=0; consoleErrors=0" in (root / "game" / "game.log").read_text()
           audio = json.loads((root / "audio.json").read_text())
@@ -90,7 +90,7 @@ jobs:
           assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
           summary = (
               f"Verified commit: `{os.environ['GITHUB_SHA']}`\n\n"
-              "22 unit tests, 5 game data tests, all 25 browser cases and 3 game browser cases passed.\n\n"
+              "22 unit tests, 9 game data and question-generation tests, all 25 browser cases and 4 game browser cases passed.\n\n"
               "All 5,009 published MP3 files matched their release checksums and decoded successfully.\n"
           )
           Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary)
