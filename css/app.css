@@ -130,6 +130,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
   line-height: 1.4;
 }
 .masthead-copy > p:not(.eyebrow) { margin: 8px 0 0; color: var(--muted); font-size: .8rem; }
+.game-entry {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-size: .85rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+.game-entry:hover, .game-entry:focus-visible { filter: brightness(1.08); text-decoration: underline; }
+@media (max-width: 600px) { .game-entry { margin-top: 6px; padding: 6px 12px; font-size: .75rem; } }
 .masthead-note { display: flex; flex-direction: column; align-items: flex-end; padding-left: 28px; border-left: 1px solid var(--line); }
 .masthead-note strong { color: var(--aux); font-family: Georgia, "Times New Roman", serif; font-size: 2.2rem; font-weight: 400; line-height: 1.15; }
 .masthead-note span { margin-top: 5px; color: var(--muted); font-size: .68rem; letter-spacing: .02em; }

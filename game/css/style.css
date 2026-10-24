@@ -1,0 +1,117 @@
+:root{--ink:#1b1b2f;--paper:#fff8e7;--red:#e63946;--gold:#ffd166;--green:#2a9d8f;--blue:#457b9d;--shadow:4px 4px 0 var(--ink)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#2b2d42;color:var(--ink);font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP","Noto Sans CJK JP","Yu Gothic","Meiryo",sans-serif;-webkit-tap-highlight-color:transparent}
+body{background-image:linear-gradient(45deg,#30324a 25%,transparent 25%,transparent 75%,#30324a 75%),linear-gradient(45deg,#30324a 25%,transparent 25%,transparent 75%,#30324a 75%);background-size:16px 16px;background-position:0 0,8px 8px}
+#app{max-width:560px;margin:0 auto;min-height:100%;background:var(--paper);position:relative;box-shadow:0 0 0 4px var(--ink);overflow:hidden}
+.screen{display:none;min-height:100vh;min-height:100dvh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.screen.active{display:flex;flex-direction:column}
+button{font:inherit;color:inherit}
+.btn{background:#fff;border:3px solid var(--ink);box-shadow:var(--shadow);padding:10px 16px;font-weight:700;font-size:16px;cursor:pointer;border-radius:0;min-height:48px;touch-action:manipulation}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.btn.big{font-size:20px;min-height:60px}
+.btn.small{min-height:40px;padding:6px 10px;font-size:14px}
+.btn.primary{background:var(--red);color:#fff}
+.btn.danger{background:#ffccd5}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible{outline:3px dashed var(--blue);outline-offset:3px}
+.menu{display:flex;flex-direction:column;gap:14px;padding:0 24px;margin:16px 0}
+#scr-title{align-items:stretch;justify-content:center;text-align:center;background:linear-gradient(#7ec8e3,#cdeffd 60%,var(--paper) 60%)}
+.logo{display:flex;flex-direction:column;align-items:center;margin-top:24px}
+.logo-zh{font-size:56px;font-weight:900;color:var(--gold);text-shadow:3px 0 var(--ink),-3px 0 var(--ink),0 3px var(--ink),0 -3px var(--ink),5px 5px 0 var(--red);letter-spacing:4px}
+.logo-ja{font-size:26px;font-weight:900;background:var(--ink);color:#fff;padding:4px 14px;margin-top:6px}
+.logo-sub{font-size:14px;margin-top:8px;font-weight:700}
+#title-art{width:288px;height:120px;margin:12px auto;image-rendering:pixelated}
+.hint{font-size:13px;opacity:.7}
+.voice-note{font-size:13px;color:#9d0208;padding:0 20px;min-height:1em}
+.bar{display:flex;align-items:center;gap:12px;padding:12px;background:var(--ink);color:#fff}
+.bar h2{margin:0;font-size:18px}
+.bar .btn{color:var(--ink)}
+.panel{padding:20px}
+.panel .row{display:flex;align-items:center;gap:10px;margin:14px 0;font-size:16px;min-height:44px}
+.panel input[type=checkbox]{width:26px;height:26px}
+.stage-list{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px}
+.stage-card{text-align:left;display:flex;flex-direction:column;gap:4px;min-height:92px}
+.stage-card .no{font-size:13px;opacity:.75}
+.stage-card .nm{font-size:17px}
+.stage-card .meta{font-size:12px;font-weight:400}
+.stage-card.cleared{background:#d8f3dc}
+.stage-card.tut{grid-column:1/-1;background:var(--gold)}
+.stage-card.review{grid-column:1/-1;background:#e0aaff}
+/* game */
+#scr-game{background:#fff8e7}
+.stage-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-bottom:4px solid var(--ink)}
+#stage{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+.hud-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:6px 54px 6px 8px;color:#fff;text-shadow:2px 2px 0 var(--ink);font-weight:900;pointer-events:none}
+.hp{display:flex;gap:2px}
+.hp i{width:21px;height:18px;display:block;background-size:100% 100%;image-rendering:pixelated}
+.hud-stage{flex:1;text-align:center;font-size:13px}
+.score{font-size:18px;font-variant-numeric:tabular-nums}
+.pause{position:absolute;right:6px;top:6px;min-height:36px;width:40px;padding:0}
+.banner{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:30px;font-weight:900;color:#fff;text-shadow:3px 3px 0 var(--ink),-2px -2px 0 var(--ink);pointer-events:none;opacity:0;transition:opacity .2s}
+.banner.show{opacity:1}
+.timer{height:10px;background:var(--ink)}
+#timer-fill{height:100%;width:100%;background:var(--gold)}
+#timer-fill.low{background:var(--red)}
+.quiz{flex:1;display:flex;flex-direction:column;padding:10px 14px 16px;gap:6px}
+.tut-tip{display:none;background:var(--gold);border:3px solid var(--ink);padding:8px 10px;font-size:14px;font-weight:700;line-height:1.5}
+.tut-tip.show{display:block}
+.q-kind{font-size:13px;font-weight:700;color:#fff;background:var(--blue);align-self:flex-start;padding:2px 8px}
+.q-main{font-size:64px;margin:auto 0;font-weight:900;text-align:center;line-height:1.2;min-height:58px;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif}
+.q-main.ja{font-family:inherit;font-size:34px}
+.q-main.py{font-family:"Noto Sans","Segoe UI",sans-serif;font-size:42px}
+.q-sub{text-align:center;font-size:14px;min-height:1.2em;opacity:.8}
+.play{display:none;align-self:center}
+.play.show{display:block}
+.q-feedback{min-height:1.6em;text-align:center;font-weight:900;font-size:16px}
+.q-feedback.ok{color:var(--green)}
+.q-feedback.ng{color:var(--red)}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.choice{min-height:72px;font-size:22px;padding:8px;word-break:break-word;line-height:1.25;position:relative}
+.choice .k{position:absolute;left:5px;top:3px;font-size:11px;opacity:.5}
+.choice.zh{font-size:30px;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif}
+.choice.py{font-family:"Noto Sans","Segoe UI",sans-serif;font-size:24px}
+.choice.ja{font-size:17px}
+.choice.correct{background:#95d5b2}
+.choice.wrong{background:#ffb3c1}
+.modal{display:none;position:fixed;inset:0;background:rgba(27,27,47,.7);z-index:10;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal .panel{background:var(--paper);border:4px solid var(--ink);box-shadow:var(--shadow);min-width:280px;text-align:center}
+.result{text-align:center}
+.result h2{font-size:28px;margin:10px 0}
+.res-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.res-stats div{border:3px solid var(--ink);padding:8px;background:#fff;display:flex;flex-direction:column}
+.res-stats span{font-size:12px}
+.res-stats b{font-size:22px}
+.res-unlock{font-weight:900;color:var(--green);min-height:1.2em}
+.result h3{font-size:15px;text-align:left;margin:14px 0 6px;border-left:6px solid var(--red);padding-left:8px}
+.word-list{list-style:none;padding:0;margin:0;text-align:left}
+.word-list li{display:flex;align-items:center;gap:10px;border-bottom:2px dashed #ccc;padding:6px 2px;font-size:15px}
+.word-list .h{font-size:24px;font-weight:900;min-width:3.2em;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC",sans-serif}
+.word-list .p{min-width:5em;font-family:"Noto Sans",sans-serif}
+.word-list .j{flex:1}
+.word-list .c{font-size:12px;opacity:.7}
+.word-list .say{min-height:40px;width:44px;padding:0}
+.word-list .none{opacity:.6}
+.shake{animation:shake .3s}
+@keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-6px,2px)}50%{transform:translate(5px,-3px)}75%{transform:translate(-3px,1px)}}
+@media (hover:none){.desktop-only{display:none}}
+@media (min-height:900px) and (min-width:600px){#app{margin-top:20px;min-height:calc(100% - 40px)}}
+/* --- HSKサイト版の追加 --- */
+.lv-label{margin:12px 0 4px;font-weight:900;font-size:14px}
+.level-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:4px 14px 10px}
+.level-picker .lv{padding:4px 2px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;line-height:1.2}
+.level-picker .lv small{font-size:11px;font-weight:400}
+.level-picker .lv.on{background:var(--gold)}
+#scr-select .level-picker{padding-top:12px}
+.select-info{margin:0 16px;font-size:13px;font-weight:700}
+.stage-pager{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px 0;font-size:13px;font-weight:700}
+.stage-pager .btn.small{min-height:44px}
+.stage-card .nm{overflow-wrap:anywhere}
+.back-site{display:block;margin:10px auto 18px;text-align:center;font-weight:700;color:var(--blue);font-size:14px;padding:12px}
+.audio-note{display:none;font-size:13px;font-weight:700;color:#9d0208;background:#fff;border:2px dashed #9d0208;padding:6px 8px;text-align:center}
+.audio-note.show{display:block}
+.q-main.ja.long{font-size:22px;line-height:1.35}
+.q-main.zh{cursor:pointer}
+.choice.ja{font-size:14px;line-height:1.35}
+.select-info:empty{display:none}
+@media (max-width:420px){.level-picker{gap:4px;padding:4px 8px 10px}.level-picker .lv{font-size:12px}}

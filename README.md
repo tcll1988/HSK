@@ -46,6 +46,10 @@ node tools/build_vocab.js
 node tools/audit_pronunciation.js
 ```
 
+## 単語バトルゲーム（HSKもじバトル）
+
+`game/` に、HSK1〜6級の単語で遊ぶゲームがあります。トップページの「🎮 ゲームで単語バトル」から開けます。単語・ピンイン・日本語の意味は `data/vocab.js`、音声は `audio/` の同じ録音を使います（ゲーム側で単語や録音は変更しません）。詳しくは [game/README.md](game/README.md)。
+
 ## 開発・動作確認
 
 Node.js 20以上を使用します。
@@ -66,6 +70,8 @@ npx playwright install chromium
 npm run test:browser -- /tmp/hsk-browser-results
 npm run test:continuity -- /tmp/hsk-continuity-results
 npm run test:learning -- /tmp/hsk-learning-results
+npm run test:game
+npm run test:game-browser -- /tmp/hsk-game-results
 ```
 
 クラウド環境の既存Chromiumを使う場合、ブラウザの追加ダウンロードを省き、`HSK_CHROMIUM_EXECUTABLE=/usr/bin/chromium npm run test:browser -- /tmp/hsk-browser-results` を実行します。配信先は `HSK_BASE_URL` で変更できます。テストは一時的なブラウザコンテキストを使用し、ログとスクリーンショットを指定ディレクトリに保存します。
