@@ -581,6 +581,10 @@
     copy.appendChild(el("p", "eyebrow", "HSK 語彙 · 1–6級"));
     copy.appendChild(el("h1", null, "ことばを、ひとつずつ。"));
     copy.appendChild(el("p", null, "見て、聞いて、確かめる。自分のペースで中国語を学ぼう。"));
+    var game = el("a", "game-entry", "🎮 ゲームで単語バトル（HSKもじバトル）");
+    game.href = "game/";
+    game.setAttribute("data-game-link", "");
+    copy.appendChild(game);
     head.appendChild(copy);
     var note = el("div", "masthead-note");
     note.appendChild(el("strong", null, vocab.length.toLocaleString("ja-JP")));

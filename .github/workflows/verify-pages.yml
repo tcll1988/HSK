@@ -7,6 +7,7 @@ on:
       - "index.html"
       - "css/**"
       - "js/**"
+      - "game/**"
       - "data/**"
       - "audio/**"
       - "test/**"
@@ -30,7 +31,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       HSK_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
     steps:
@@ -54,6 +55,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/hsk-checks"
           npm test | tee "$RUNNER_TEMP/hsk-checks/unit.log"
           node tools/audit_pronunciation.js | tee "$RUNNER_TEMP/hsk-checks/pronunciation.log"
+          npm run test:game | tee "$RUNNER_TEMP/hsk-checks/game-unit.log"
       - name: Wait for the published application
         run: python3 tools/wait_for_pages.py "$HSK_BASE_URL"
       - name: Verify every published recording
@@ -66,6 +68,7 @@ jobs:
           npm run test:browser -- "$RUNNER_TEMP/hsk-checks/usability"
           npm run test:continuity -- "$RUNNER_TEMP/hsk-checks/continuity"
           npm run test:learning -- "$RUNNER_TEMP/hsk-checks/learning"
+          npm run test:game-browser -- "$RUNNER_TEMP/hsk-checks/game"
       - name: Confirm complete test coverage
         run: |
           python3 - <<'PY'
@@ -78,12 +81,16 @@ jobs:
           for suite, count in [("usability", 8), ("continuity", 7), ("learning", 10)]:
               text = (root / suite / f"{suite}.log").read_text()
               assert f"{count} cases passed; pageErrors=0; consoleErrors=0" in text, suite
+          game_unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "game-unit.log").read_text())
+          for label, count in [("tests", 5), ("pass", 5), ("fail", 0)]:
+              assert re.search(rf"\b{label}\s+{count}\b", game_unit), ("game", label, count)
+          assert "3 game cases passed; pageErrors=0; consoleErrors=0" in (root / "game" / "game.log").read_text()
           audio = json.loads((root / "audio.json").read_text())
           assert audio["published_mp3_files_verified"] == 5009
           assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
           summary = (
               f"Verified commit: `{os.environ['GITHUB_SHA']}`\n\n"
-              "22 unit tests and all 25 browser cases passed.\n\n"
+              "22 unit tests, 5 game data tests, all 25 browser cases and 3 game browser cases passed.\n\n"
               "All 5,009 published MP3 files matched their release checksums and decoded successfully.\n"
           )
           Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary)
