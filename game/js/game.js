@@ -7,10 +7,12 @@
   var COUNTS = GameLevels.counts();
 
   /* ---------- 保存（級ごとに記録） ---------- */
+  var hadSave = false;
+  try { hadSave = !!localStorage.getItem(KEY); } catch (e) { }
   var save = load();
   function blankLevel() { return { unlocked: 0, cleared: {}, best: {}, miss: {} }; }
   function load() {
-    var d = { level: 1, tutorial: false, levels: {}, settings: { timer: true, autoplay: true, speed: 1 } };
+    var d = { level: 1, tutorial: false, levels: {}, settings: { timer: true, autoplay: true, speed: 1, sfx: true } };
     try {
       var x = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (x && typeof x === 'object') {
@@ -42,9 +44,45 @@
     LV = save.levels[l];
     if (LV.unlocked >= NSTAGE) LV.unlocked = NSTAGE - 1;
     save.level = l; store();
-    page = Math.floor(Math.min(LV.unlocked, NSTAGE - 1) / PAGE_SIZE);
+    page = LEVEL === 1 ? Math.floor(Math.min(LV.unlocked, NSTAGE - 1) / PAGE_SIZE) : 0;
     renderLevelPicker();
+    renderTitleReview();
     $('logo-sub').textContent = 'HSK ' + l + '級・' + WORDS.length + '語';
+  }
+
+  // タイトルの復習ボタン：記録がない級では押せないようにして、理由を小さく出す
+  function renderTitleReview() {
+    var n = Object.keys(LV.miss).length, b = $('btn-review');
+    b.disabled = !n;
+    $('review-note').textContent = n ? 'HSK' + LEVEL + '級：' + n + '語の記録があります' : 'まだ記録がありません（HSK' + LEVEL + '級）';
+  }
+
+  /* ---------- 動きをへらす設定（prefers-reduced-motion） ---------- */
+  var reduceMQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function reducedMotion() { return !!(reduceMQ && reduceMQ.matches); }
+
+  /* ---------- 効果音（WebAudio。設定でオフにできる） ---------- */
+  var actx = null;
+  function sfxContext() {
+    if (actx) return actx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { actx = new AC(); } catch (e) { actx = null; }
+    return actx;
+  }
+  function sfx(kind) {
+    if (!save.settings.sfx) return;
+    var c = sfxContext(); if (!c) return;
+    try {
+      if (c.state === 'suspended' && c.resume) c.resume();
+      var notes = kind === 'ok' ? [[660, 0], [990, 0.08]] : [[220, 0], [165, 0.11]];
+      notes.forEach(function (n) {
+        var o = c.createOscillator(), g = c.createGain(), t = c.currentTime + n[1];
+        o.type = kind === 'ok' ? 'square' : 'sawtooth'; o.frequency.setValueAtTime(n[0], t);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.14);
+      });
+    } catch (e) { /* 効果音は失敗しても無視 */ }
   }
 
   /* ---------- 音声（HSKサイトの録音mp3） ---------- */
@@ -62,6 +100,7 @@
     return 'data:audio/wav;base64,' + btoa(str);
   })();
   function unlockAudio() { // ユーザーのタップの中で一度だけ再生して、以後の自動再生を許可してもらう
+    if (save.settings.sfx) { var c = sfxContext(); if (c && c.state === 'suspended' && c.resume) { try { c.resume(); } catch (e) { } } }
     if (audioUnlocked) return;
     audioUnlocked = true;
     try { player.src = SILENT; var p = player.play(); if (p && p.catch) p.catch(function () { audioUnlocked = false; }); } catch (e) { audioUnlocked = false; }
@@ -155,7 +194,14 @@
       main = w.h; sub = w.plain; answer = w.pinyin; opts = toneVariants(w);
     }
     var all = shuffle([answer].concat(opts.slice(0, 3)));
-    return { word: w, type: type, main: main, sub: sub, choices: all, answer: all.indexOf(answer) };
+    var key = type === 'h2ja' ? 'ja' : type === 'h2py' || type === 'tone' ? 'pinyin' : 'h';
+    var owners = all.map(function (c) {
+      if (c === answer) return w;
+      if (type === 'tone') return null;
+      for (var k = 0; k < WORDS.length; k++) if (WORDS[k][key] === c) return WORDS[k];
+      return null;
+    });
+    return { word: w, type: type, main: main, sub: sub, choices: all, owners: owners, answer: all.indexOf(answer) };
   }
 
   /* ---------- 画面 ---------- */
@@ -163,6 +209,7 @@
     document.querySelectorAll('.screen').forEach(function (e) { e.classList.remove('active'); });
     $('scr-' + id).classList.add('active');
     if (id === 'select') renderSelect();
+    if (id === 'title') renderTitleReview();
     if (id !== 'game') stopAudio();
     current = id;
     window.scrollTo(0, 0);
@@ -195,26 +242,44 @@
     var review = '<button class="btn stage-card review" data-stage="review"' + (nm ? '' : ' disabled') + '><span class="no">REVIEW・HSK' + LEVEL + '</span><span class="nm">まちがえた単語を復習</span><span class="meta">' + (nm ? nm + '語が記録されています' : 'まだ記録がありません') + '</span></button>';
     if (page === 0) html += review;
     for (var i = page * PAGE_SIZE; i < Math.min(NSTAGE, (page + 1) * PAGE_SIZE); i++) {
-      var locked = !save.tutorial || i > LV.unlocked;
-      var words = byStage[i].slice(0, 4).map(function (w) { return w.h; }).join('・');
-      html += '<button class="btn stage-card' + (LV.cleared[i] ? ' cleared' : '') + '" data-stage="' + i + '"' + (locked ? ' disabled' : '') + '>' +
-        '<span class="no">STAGE ' + (i + 1) + (LV.cleared[i] ? ' ✔' : '') + (locked ? ' 🔒' : '') + '</span><span class="nm">' + esc(STAGE_NAMES[i]) + '</span>' +
-        '<span class="meta">' + esc(words) + '… ' + byStage[i].length + '語' + (LV.best[i] ? '／ベスト ' + LV.best[i] : '') + '</span></button>';
+      // HSK1は順番に解放。HSK2〜6はチュートリアル後すべて選べる
+      var locked = !save.tutorial || (LEVEL === 1 && i > LV.unlocked);
+      var head = '<span class="no">STAGE ' + (i + 1) + (LV.cleared[i] ? ' ✔' : '') + (locked ? ' 🔒' : '') + '</span>';
+      var best = LV.best[i] ? '／ベスト ' + LV.best[i] : '';
+      if (LEVEL === 1) {
+        var words = byStage[i].slice(0, 4).map(function (w) { return w.h; }).join('・');
+        head += '<span class="nm">' + esc(STAGE_NAMES[i]) + '</span><span class="meta" lang="zh-CN">' + esc(words) + '… </span><span class="meta">' + byStage[i].length + '語' + best + '</span>';
+      } else {
+        var hz = byStage[i].slice(0, 3).map(function (w) { return '<span class="w">' + esc(w.h) + '</span>'; }).join('・') + '…';
+        head += '<span class="nm hz" lang="zh-CN">' + hz + '</span><span class="meta">' + esc(STAGE_NAMES[i]) + '　' + byStage[i].length + '語' + best + '</span>';
+      }
+      html += '<button class="btn stage-card' + (LV.cleared[i] ? ' cleared' : '') + '" data-stage="' + i + '"' + (locked ? ' disabled' : '') + '>' + head + '</button>';
     }
     if (page > 0) html += review;
     el.innerHTML = html;
-    var pg = $('stage-pager');
-    if (pages > 1) {
-      pg.style.display = '';
-      pg.innerHTML = '<button class="btn small" data-page="-1"' + (page === 0 ? ' disabled' : '') + '>◀ まえ</button>' +
-        '<span>' + (page * PAGE_SIZE + 1) + '〜' + Math.min(NSTAGE, (page + 1) * PAGE_SIZE) + '／全' + NSTAGE + 'ステージ</span>' +
-        '<button class="btn small" data-page="1"' + (page >= pages - 1 ? ' disabled' : '') + '>つぎ ▶</button>';
-    } else { pg.style.display = 'none'; pg.innerHTML = ''; }
-    $('select-info').textContent = save.tutorial ? 'クリア ' + Object.keys(LV.cleared).length + '／' + NSTAGE + 'ステージ（' + WORDS.length + '語）' : 'まずチュートリアルをクリアしよう！';
+    ['stage-pager', 'stage-pager2'].forEach(function (pid, n) {
+      var pg = $(pid);
+      if (pages > 1) {
+        var opts = '';
+        for (var k = 0; k < pages; k++) opts += '<option value="' + k + '"' + (k === page ? ' selected' : '') + '>' + (k * PAGE_SIZE + 1) + '〜' + Math.min(NSTAGE, (k + 1) * PAGE_SIZE) + '</option>';
+        pg.style.display = '';
+        pg.innerHTML = '<button class="btn small" data-page="-1"' + (page === 0 ? ' disabled' : '') + '>◀ まえ</button>' +
+          '<label class="page-pick">ステージ <select class="page-select" aria-label="ステージの範囲（全' + NSTAGE + 'ステージ）">' + opts + '</select><span class="page-total">／全' + NSTAGE + '</span></label>' +
+          '<button class="btn small" data-page="1"' + (page >= pages - 1 ? ' disabled' : '') + '>つぎ ▶</button>';
+      } else { pg.style.display = 'none'; pg.innerHTML = ''; }
+    });
+    $('select-info').textContent = !save.tutorial ? 'まずチュートリアルをクリアしよう！' :
+      'クリア ' + Object.keys(LV.cleared).length + '／' + NSTAGE + 'ステージ（' + WORDS.length + '語）' + (LEVEL === 1 ? '' : '・どのステージからでも始められます');
   }
-  $('stage-pager').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-page]'); if (!b || b.disabled) return;
-    page += +b.getAttribute('data-page'); renderSelect(); window.scrollTo(0, 0);
+  ['stage-pager', 'stage-pager2'].forEach(function (pid) {
+    $(pid).addEventListener('click', function (e) {
+      var b = e.target.closest('[data-page]'); if (!b || b.disabled) return;
+      page += +b.getAttribute('data-page'); renderSelect(); window.scrollTo(0, 0);
+    });
+    $(pid).addEventListener('change', function (e) {
+      if (!e.target.classList.contains('page-select')) return;
+      page = +e.target.value; renderSelect(); window.scrollTo(0, 0);
+    });
   });
   $('stage-list').addEventListener('click', function (e) {
     var b = e.target.closest('[data-stage]'); if (!b || b.disabled) return;
@@ -223,13 +288,14 @@
     startStage(v === 'tutorial' ? 'tutorial' : v === 'review' ? 'review' : +v);
   });
   $('btn-start').onclick = function () { unlockAudio(); if (!save.tutorial) startStage('tutorial'); else show('select'); };
-  $('btn-review').onclick = function () { unlockAudio(); if (Object.keys(LV.miss).length) startStage('review'); else { $('voice-note').textContent = 'HSK' + LEVEL + '級では、まだまちがえた単語の記録がありません。まずステージをプレイしましょう。'; } };
+  $('btn-review').onclick = function () { unlockAudio(); if (Object.keys(LV.miss).length) startStage('review'); };
   $('btn-settings').onclick = function () {
-    $('set-timer').checked = !!save.settings.timer; $('set-autoplay').checked = !!save.settings.autoplay;
+    $('set-timer').checked = !!save.settings.timer; $('set-autoplay').checked = !!save.settings.autoplay; $('set-sfx').checked = !!save.settings.sfx;
     $('set-speed').value = String(save.settings.speed); show('settings');
   };
   $('set-timer').onchange = function () { save.settings.timer = this.checked; store(); };
   $('set-autoplay').onchange = function () { save.settings.autoplay = this.checked; store(); };
+  $('set-sfx').onchange = function () { save.settings.sfx = this.checked; store(); if (this.checked) { unlockAudio(); sfx('ok'); } };
   $('set-speed').onchange = function () { save.settings.speed = +this.value; store(); };
   $('btn-voicetest').onclick = function () {
     unlockAudio();
@@ -238,7 +304,7 @@
   };
   $('btn-reset').onclick = function () {
     if (confirm('HSK' + LEVEL + '級のクリア記録・ベストスコア・まちがえた単語の記録を消します。よろしいですか？')) {
-      save.levels[LEVEL] = blankLevel(); LV = save.levels[LEVEL]; store(); alert('HSK' + LEVEL + '級の記録を消しました。');
+      save.levels[LEVEL] = blankLevel(); LV = save.levels[LEVEL]; store(); renderTitleReview(); alert('HSK' + LEVEL + '級の記録を消しました。');
     }
   };
 
@@ -291,13 +357,38 @@
     scene.reset(g);
     renderHP(); renderScore();
     banner(id === 'tutorial' ? 'あそびかた' : id === 'review' ? '復習スタート！' : 'STAGE ' + (id + 1) + ' スタート！', 1200);
-    setTimeout(function () { if (G === g) nextQuestion(); }, 900);
+    later(nextQuestion, 900);
     loopStart();
   }
-  function stopGame() { if (G) { G.over = true; } G = null; clearTimers(); $('pause').classList.remove('show'); }
+  function stopGame() { if (G) { G.over = true; } if (G && G.paused) closePause(); G = null; clearTimers(); hideContinue(); }
+  // ゲーム中のタイマー。ポーズ中は止めて、再開したら残り時間から続ける
   var timers = [];
-  function later(fn, ms) { var g = G; timers.push(setTimeout(function () { if (G === g && !g.over) fn(); }, ms)); }
-  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+  function later(fn, ms) {
+    var g = G, t = { fn: function () { if (G === g && !g.over) fn(); }, due: Date.now() + ms, left: ms, id: null };
+    t.id = setTimeout(function () { timers = timers.filter(function (x) { return x !== t; }); t.fn(); }, ms);
+    timers.push(t);
+  }
+  function suspendTimers() { timers.forEach(function (t) { clearTimeout(t.id); t.left = Math.max(0, t.due - Date.now()); }); }
+  function resumeTimers() {
+    timers.forEach(function (t) {
+      t.due = Date.now() + t.left;
+      t.id = setTimeout(function () { timers = timers.filter(function (x) { return x !== t; }); t.fn(); }, t.left);
+    });
+  }
+  function clearTimers() { timers.forEach(function (t) { clearTimeout(t.id); }); timers = []; }
+  // まちがえたとき：自動で進まず「つぎへ ▶」を待つ
+  var continueFn = null;
+  function showContinue(label, fn) {
+    continueFn = fn;
+    var b = $('btn-continue'); b.textContent = label; b.classList.add('show');
+    try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); }
+  }
+  function hideContinue() { continueFn = null; $('btn-continue').classList.remove('show'); }
+  function doContinue() {
+    if (!continueFn || !G || G.paused) return;
+    var fn = continueFn; hideContinue(); fn();
+  }
+  $('btn-continue').onclick = doContinue;
 
   function nextQuestion() {
     var g = G; if (!g || g.over) return;
@@ -336,11 +427,13 @@
     main.lang = T.cls === 'zh' ? 'zh-CN' : 'ja';
     $('q-sub').textContent = q.sub;
     var fb = $('q-feedback'); fb.textContent = ''; fb.className = 'q-feedback';
-    var play = $('btn-play');
+    hideContinue();
     if (q.type === 'listen') {
-      main.textContent = '🔊'; play.classList.add('show'); $('q-sub').textContent = '';
+      main.className = 'q-main listen';
+      main.innerHTML = '<button type="button" class="big-play" id="btn-listen" aria-label="もう一度聞く"><span aria-hidden="true">🔊</span><small>タップでもう一度</small></button>';
+      $('q-sub').textContent = '';
       later(function () { playWord(q.word, function (blocked) { if (!blocked && G === g && g.q === q) listenFallback(q); }); }, 250);
-    } else play.classList.remove('show');
+    }
     var html = '';
     q.choices.forEach(function (c, i) { html += '<button class="btn choice ' + T.opt + '" data-i="' + i + '" lang="' + (T.opt === 'ja' ? 'ja' : 'zh-CN') + '"><span class="k">' + (i + 1) + '</span>' + esc(c) + '</button>'; });
     $('choices').innerHTML = html;
@@ -356,9 +449,10 @@
     $('q-sub').textContent = '（音声を読み込めなかったので、ピンインで出題しています）';
   }
   function replay() { var g = G; if (!g || !g.q) return; var q = g.q; unlockAudio(); playWord(q.word, function (blocked) { if (!blocked && q.type === 'listen' && G === g && g.q === q) listenFallback(q); }); }
-  $('btn-play').onclick = replay;
   document.addEventListener('keydown', function (e) {
     if (current !== 'game' || !G) return;
+    if (G.paused) { if (e.key === 'Escape') { togglePause(); e.preventDefault(); } return; }
+    if (continueFn && (e.key === 'Enter' || e.key === ' ')) { doContinue(); e.preventDefault(); return; }
     if (e.key >= '1' && e.key <= '4') { answer(+e.key - 1); e.preventDefault(); }
     else if (e.key === ' ' && G.q && G.q.type === 'listen') { replay(); e.preventDefault(); }
     else if (e.key === 'Escape') togglePause();
@@ -381,6 +475,8 @@
       var pts = 100 + Math.min(g.combo, 10) * 10 + (g.timeMax ? Math.round(g.timeLeft / g.timeMax * 50) : 0);
       if (g.phase !== 'tutorial') { g.score += pts; renderScore(); }
       fb.textContent = '正解！ ' + info; fb.className = 'q-feedback ok';
+      sfx('ok');
+      if (g.phase !== 'tutorial' && (g.combo === 3 || g.combo === 5 || g.combo === 10)) banner(g.combo + 'コンボ！' + (g.combo >= 10 ? 'すごい！' : ''), 900);
       if (g.id === 'review') { if (LV.miss[w.id]) { LV.miss[w.id]--; if (LV.miss[w.id] <= 0) delete LV.miss[w.id]; store(); } }
       if (save.settings.autoplay && q.type !== 'listen') playWord(w);
       var done = false;
@@ -396,18 +492,20 @@
       }, 900);
     } else {
       g.combo = 0;
-      fb.innerHTML = (i < 0 ? '時間切れ！' : 'ざんねん…') + ' 正解は <b>' + esc(q.choices[q.answer]) + '</b><br><small>' + esc(info) + '</small>';
+      sfx('ng');
+      fb.innerHTML = (i < 0 ? '時間切れ！' : 'ざんねん…') + ' 正解は <b>' + esc(q.choices[q.answer]) + '</b><br><small>' + esc(info) + '</small>' +
+        (i >= 0 ? '<br><small class="yours">あなたの答え：' + esc(yourAnswer(q, i)) + '</small>' : '');
       fb.className = 'q-feedback ng';
       if (g.phase === 'tutorial') {
-        fb.innerHTML += '<br><small>（チュートリアルなのでダメージなし。もう一度！）</small>';
-        later(function () { ask(makeQuestion(item.w, item.type), item); }, 2000);
+        fb.innerHTML += '<br><small>（チュートリアルなのでダメージなし）</small>';
+        showContinue('もう一度 ▶', function () { ask(makeQuestion(item.w, item.type), item); });
         return;
       }
       playWord(w);
       g.missWords[w.id] = (g.missWords[w.id] || 0) + 1;
       LV.miss[w.id] = (LV.miss[w.id] || 0) + 1; store();
       g.hp--; renderHP(); scene.enemyShoot();
-      $('scr-game').classList.remove('shake'); void $('scr-game').offsetWidth; $('scr-game').classList.add('shake');
+      if (!reducedMotion()) { $('scr-game').classList.remove('shake'); void $('scr-game').offsetWidth; $('scr-game').classList.add('shake'); }
       var abandon = false;
       if (item.kind === 'small') {
         g.retries[w.id] = (g.retries[w.id] || 0) + 1;
@@ -415,14 +513,23 @@
         if (g.retries[w.id] <= 1) g.queue.push({ w: w, type: item.type === 'h2ja' ? 'ja2h' : item.type === 'ja2h' ? 'h2py' : 'h2ja', kind: 'small' });
         else abandon = true;
       }
-      later(function () {
+      showContinue(g.hp <= 0 ? '結果を見る ▶' : 'つぎへ ▶', function () {
+        if (G !== g || g.over) return;
         if (g.hp <= 0) return finish(false);
         if (item.kind === 'small') { if (g.enemy) g.enemy.flee = true; if (abandon) g.doneSmall = (g.doneSmall || 0) + 1; }
         nextQuestion();
-      }, 2200);
+      });
     }
   }
 
+  // 選んだ選択肢が何だったか（例：办法（bànfǎ）＝方法）
+  function yourAnswer(q, i) {
+    var c = q.choices[i], o = q.owners && q.owners[i];
+    if (!o) return c + (q.type === 'tone' ? '（声調がちがいます）' : '');
+    if (q.type === 'h2ja') return c + ' ＝ ' + o.h + '（' + o.pinyin + '）';
+    if (q.type === 'h2py' || q.type === 'tone') return c + ' ＝ ' + o.h + '（' + o.ja + '）';
+    return c + '（' + o.pinyin + '）＝ ' + o.ja;
+  }
   function finish(win) {
     var g = G; if (!g) return; g.over = true; g.q = null; clearTimers();
     var id = g.id, unlockMsg = '';
@@ -431,7 +538,7 @@
       save.tutorial = true;
     } else if (typeof id === 'number' && win) {
       LV.cleared[id] = true;
-      if (id + 1 < NSTAGE && LV.unlocked < id + 1) { LV.unlocked = id + 1; unlockMsg = 'STAGE ' + (id + 2) + '「' + STAGE_NAMES[id + 1] + '」が解放されました！'; }
+      if (id + 1 < NSTAGE && LV.unlocked < id + 1) { LV.unlocked = id + 1; if (LEVEL === 1) unlockMsg = 'STAGE ' + (id + 2) + '「' + STAGE_NAMES[id + 1] + '」が解放されました！'; }
       else if (id + 1 >= NSTAGE) unlockMsg = 'HSK' + LEVEL + '級 全ステージクリア！おめでとう！';
     }
     if (typeof id === 'number') LV.best[id] = Math.max(LV.best[id] || 0, g.score);
@@ -446,15 +553,19 @@
   }
   function showResult(g, win, unlockMsg) {
     show('result');
-    $('res-title').textContent = g.id === 'tutorial' ? 'チュートリアル完了！' : win ? (g.id === 'review' ? '復習クリア！' : 'ステージクリア！') : 'ゲームオーバー';
+    var tut = g.id === 'tutorial';
+    $('res-title').textContent = tut ? 'あそびかた完了！' : win ? (g.id === 'review' ? '復習クリア！' : 'ステージクリア！') : 'ゲームオーバー';
+    // チュートリアルでは正答率・スコア・単語リストは出さない
+    [$('res-stats'), $('res-miss'), $('res-top')].concat([].slice.call(document.querySelectorAll('.res-list'))).forEach(function (el) { el.style.display = tut ? 'none' : ''; });
+    if (tut) unlockMsg = (unlockMsg ? unlockMsg + ' ' : '') + 'つぎはステージ1で本番です。';
     $('res-acc').textContent = g.answered ? Math.round(g.correct / g.answered * 100) + '%' : '—';
     $('res-score').textContent = g.score;
     $('res-best').textContent = typeof g.id === 'number' ? LV.best[g.id] : '—';
     $('res-unlock').textContent = unlockMsg;
     var mk = Object.keys(g.missWords);
     $('res-miss').innerHTML = mk.length ? mk.filter(function (k) { return byId[k]; }).map(function (k) { return wordRow(byId[k], g.missWords[k], '×'); }).join('') : '<li class="none">ありません。パーフェクト！</li>';
-    var top = Object.keys(LV.miss).filter(function (k) { return byId[k]; }).sort(function (a, b) { return LV.miss[b] - LV.miss[a]; }).slice(0, 5);
-    $('res-top').innerHTML = top.length ? top.map(function (k) { return wordRow(byId[k], LV.miss[k], 'ミス'); }).join('') : '<li class="none">記録はまだありません</li>';
+    var top = Object.keys(LV.miss).filter(function (k) { return byId[k] && !g.missWords[k]; }).sort(function (a, b) { return LV.miss[b] - LV.miss[a]; }).slice(0, 5);
+    $('res-top').innerHTML = top.length ? top.map(function (k) { return wordRow(byId[k], LV.miss[k], 'ミス'); }).join('') : (mk.length ? '<li class="none">今回の単語のほかには、ありません</li>' : '<li class="none">記録はまだありません</li>');
     var next = $('btn-next');
     if (g.id === 'tutorial') { next.style.display = ''; next.textContent = 'ステージ1へ ▶'; next.onclick = function () { startStage(0); }; }
     else if (typeof g.id === 'number' && win && g.id + 1 < NSTAGE) { next.style.display = ''; next.textContent = 'つぎのステージへ ▶'; next.onclick = function () { startStage(g.id + 1); }; }
@@ -467,7 +578,11 @@
     unlockAudio(); playWord(byId[b.getAttribute('data-say')], function (blocked) { if (!blocked) { b.textContent = '✕'; b.title = '音声を読み込めませんでした'; } });
   });
   // 問題の漢字をタップしても発音が聞ける（リスニング問題では答えがわかるので除く）
-  $('q-main').addEventListener('click', function () { if (G && G.q && G.q.type !== 'listen' && /zh/.test(this.className)) { unlockAudio(); playWord(G.q.word); } });
+  $('q-main').addEventListener('click', function (e) {
+    if (!G || !G.q) return;
+    if (G.q.type === 'listen') { if (e.target.closest('#btn-listen')) replay(); return; }
+    if (/zh/.test(this.className)) { unlockAudio(); playWord(G.q.word); }
+  });
 
   function renderHP() {
     var full = Art.sprite('heart').toDataURL(), empty = Art.sprite('heart', { r: '#555' }).toDataURL(), h = '';
@@ -482,8 +597,29 @@
   var bannerT;
   function banner(t, ms) { var b = $('banner'); b.textContent = t; b.classList.add('show'); clearTimeout(bannerT); bannerT = setTimeout(function () { b.classList.remove('show'); }, ms); }
   function togglePause() {
-    if (!G || G.over) return; G.paused = !G.paused; $('pause').classList.toggle('show', G.paused);
+    if (!G || G.over) return;
+    G.paused = !G.paused;
+    if (G.paused) {
+      suspendTimers(); stopAudio();
+      $('pause').classList.add('show');
+      $('scr-game').inert = true; $('scr-game').setAttribute('aria-hidden', 'true');
+      $('btn-resume').focus();
+    } else {
+      closePause();
+      resumeTimers();
+    }
   }
+  function closePause() {
+    $('pause').classList.remove('show');
+    $('scr-game').inert = false; $('scr-game').removeAttribute('aria-hidden');
+    if (current === 'game') $('btn-pause').focus();
+  }
+  // ダイアログの中だけでTabが回るようにする
+  $('pause').addEventListener('keydown', function (e) {
+    if (e.key !== 'Tab') return;
+    var f = [$('btn-resume'), $('btn-quit')], i = f.indexOf(document.activeElement);
+    e.preventDefault(); f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
+  });
   $('btn-pause').onclick = togglePause; $('btn-resume').onclick = togglePause;
   $('btn-quit').onclick = function () { stopGame(); show('select'); };
   document.addEventListener('visibilitychange', function () { if (document.hidden && G && !G.paused && !G.over && current === 'game') togglePause(); });
@@ -550,7 +686,7 @@
     draw: function () {
       var g = this.g, th = (g && g.theme) || Art.THEMES[0];
       cx.save();
-      if (this.shake > 0) cx.translate((Math.random() - .5) * 4, (Math.random() - .5) * 4);
+      if (this.shake > 0 && !reducedMotion()) cx.translate((Math.random() - .5) * 4, (Math.random() - .5) * 4);
       var sky = cx.createLinearGradient(0, 0, 0, GROUND); sky.addColorStop(0, th[0]); sky.addColorStop(1, th[1]);
       cx.fillStyle = sky; cx.fillRect(-4, -4, W + 8, GROUND + 4);
       // 雲
@@ -599,7 +735,7 @@
       if (e && e.kind === 'boss') { cx.strokeStyle = 'rgba(189,224,254,' + (0.4 + Math.sin(this.t / 10) * 0.2) + ')'; cx.lineWidth = 2; cx.strokeRect(this.heroX + 28, GROUND - 60, 2, 60); }
       this.parts.forEach(function (p) { cx.fillStyle = p.c; cx.fillRect(p.x, p.y, 3, 3); });
       cx.font = 'bold 10px monospace'; this.texts.forEach(function (t) { cx.fillStyle = '#1b1b2f'; cx.fillText(t.t, t.x + 1, t.y + 1); cx.fillStyle = '#ffd166'; cx.fillText(t.t, t.x, t.y); });
-      if (this.flash > 0) { cx.fillStyle = 'rgba(255,255,255,.25)'; cx.fillRect(0, 0, W, H); }
+      if (this.flash > 0 && !reducedMotion()) { cx.fillStyle = 'rgba(255,255,255,.25)'; cx.fillRect(0, 0, W, H); }
       cx.restore();
     }
   };
@@ -626,8 +762,21 @@
     save: function () { return JSON.parse(JSON.stringify(save)); },
     screen: function () { return current; },
     level: function () { return LEVEL; }, setLevel: setLevel, words: function () { return WORDS; }, stages: function () { return STAGES; },
-    makeQuestion: makeQuestion, audioSrc: GameLevels.audioSrc, startStage: function (id) { startStage(id); }
+    makeQuestion: makeQuestion, audioSrc: GameLevels.audioSrc, startStage: function (id) { startStage(id); },
+    ask: function (id, type) { if (!G || !byId[id]) return false; ask(makeQuestion(byId[id], type), { w: byId[id], type: type, kind: 'small' }); return true; },
+    paused: function () { return !!(G && G.paused); }, pendingTimers: function () { return timers.length; }, waitingNext: function () { return !!continueFn; }
   };
-  setLevel(save.level);
+  // 開く級：URLの ?level= → このゲームの記録 → HSK単語サイトで選んでいた級
+  (function () {
+    var start = save.level;
+    var p = null;
+    try { p = new URLSearchParams(location.search).get('level'); } catch (e) { }
+    var n = Number(p);
+    if (p && n >= 1 && n <= 6 && n === Math.floor(n)) start = n;
+    else if (!hadSave) {
+      try { var site = JSON.parse(localStorage.getItem('hsk-study-progress-v1') || 'null'); if (site && site.level >= 1 && site.level <= 6 && site.level === Math.floor(site.level)) start = site.level; } catch (e) { }
+    }
+    setLevel(start);
+  })();
   show('title');
 })();

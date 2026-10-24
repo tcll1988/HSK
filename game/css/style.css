@@ -9,7 +9,7 @@ button{font:inherit;color:inherit}
 .btn{background:#fff;border:3px solid var(--ink);box-shadow:var(--shadow);padding:10px 16px;font-weight:700;font-size:16px;cursor:pointer;border-radius:0;min-height:48px;touch-action:manipulation}
 .btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
 .btn.big{font-size:20px;min-height:60px}
-.btn.small{min-height:40px;padding:6px 10px;font-size:14px}
+.btn.small{min-height:44px;padding:6px 10px;font-size:14px}
 .btn.primary{background:var(--red);color:#fff}
 .btn.danger{background:#ffccd5}
 .btn:disabled{opacity:.45;cursor:not-allowed}
@@ -41,22 +41,22 @@ button{font:inherit;color:inherit}
 #scr-game{background:#fff8e7}
 .stage-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-bottom:4px solid var(--ink)}
 #stage{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-.hud-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:6px 54px 6px 8px;color:#fff;text-shadow:2px 2px 0 var(--ink);font-weight:900;pointer-events:none}
+.hud-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:8px;padding:6px 56px 6px 8px;color:#fff;text-shadow:2px 2px 0 var(--ink);font-weight:900;pointer-events:none}
 .hp{display:flex;gap:2px}
 .hp i{width:21px;height:18px;display:block;background-size:100% 100%;image-rendering:pixelated}
 .hud-stage{flex:1;text-align:center;font-size:13px}
 .score{font-size:18px;font-variant-numeric:tabular-nums}
-.pause{position:absolute;right:6px;top:6px;min-height:36px;width:40px;padding:0}
+.pause{position:absolute;right:4px;top:4px;min-height:44px;width:44px;padding:0}
 .banner{position:absolute;left:0;right:0;top:40%;text-align:center;font-size:30px;font-weight:900;color:#fff;text-shadow:3px 3px 0 var(--ink),-2px -2px 0 var(--ink);pointer-events:none;opacity:0;transition:opacity .2s}
 .banner.show{opacity:1}
 .timer{height:10px;background:var(--ink)}
 #timer-fill{height:100%;width:100%;background:var(--gold)}
 #timer-fill.low{background:var(--red)}
 .quiz{flex:1;display:flex;flex-direction:column;padding:10px 14px 16px;gap:6px}
-.tut-tip{display:none;background:var(--gold);border:3px solid var(--ink);padding:8px 10px;font-size:14px;font-weight:700;line-height:1.5}
+.tut-tip{display:none;background:var(--gold);border:3px solid var(--ink);padding:8px 10px;font-size:15px;font-weight:700;line-height:1.5}
 .tut-tip.show{display:block}
-.q-kind{font-size:13px;font-weight:700;color:#fff;background:var(--blue);align-self:flex-start;padding:2px 8px}
-.q-main{font-size:64px;margin:auto 0;font-weight:900;text-align:center;line-height:1.2;min-height:58px;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif}
+.q-kind{font-size:14px;font-weight:700;color:#fff;background:var(--blue);align-self:flex-start;padding:2px 8px}
+.q-main{font-size:64px;margin:10px 0 6px;font-weight:900;text-align:center;line-height:1.2;min-height:58px;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei","Hiragino Sans GB",sans-serif}
 .q-main.ja{font-family:inherit;font-size:34px}
 .q-main.py{font-family:"Noto Sans","Segoe UI",sans-serif;font-size:42px}
 .q-sub{text-align:center;font-size:14px;min-height:1.2em;opacity:.8}
@@ -90,7 +90,7 @@ button{font:inherit;color:inherit}
 .word-list .p{min-width:5em;font-family:"Noto Sans",sans-serif}
 .word-list .j{flex:1}
 .word-list .c{font-size:12px;opacity:.7}
-.word-list .say{min-height:40px;width:44px;padding:0}
+.word-list .say{min-height:44px;width:44px;padding:0}
 .word-list .none{opacity:.6}
 .shake{animation:shake .3s}
 @keyframes shake{0%,100%{transform:translate(0)}25%{transform:translate(-6px,2px)}50%{transform:translate(5px,-3px)}75%{transform:translate(-3px,1px)}}
@@ -99,7 +99,7 @@ button{font:inherit;color:inherit}
 /* --- HSKサイト版の追加 --- */
 .lv-label{margin:12px 0 4px;font-weight:900;font-size:14px}
 .level-picker{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:4px 14px 10px}
-.level-picker .lv{padding:4px 2px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;line-height:1.2}
+.level-picker .lv{padding:4px 2px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px;line-height:1.2}
 .level-picker .lv small{font-size:11px;font-weight:400}
 .level-picker .lv.on{background:var(--gold)}
 #scr-select .level-picker{padding-top:12px}
@@ -107,11 +107,38 @@ button{font:inherit;color:inherit}
 .stage-pager{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px 0;font-size:13px;font-weight:700}
 .stage-pager .btn.small{min-height:44px}
 .stage-card .nm{overflow-wrap:anywhere}
-.back-site{display:block;margin:10px auto 18px;text-align:center;font-weight:700;color:var(--blue);font-size:14px;padding:12px}
+.back-site{display:block;margin:10px auto 18px;text-align:center;font-weight:700;color:#1d4e6e;font-size:14px;padding:12px}
 .audio-note{display:none;font-size:13px;font-weight:700;color:#9d0208;background:#fff;border:2px dashed #9d0208;padding:6px 8px;text-align:center}
 .audio-note.show{display:block}
 .q-main.ja.long{font-size:22px;line-height:1.35}
 .q-main.zh{cursor:pointer}
-.choice.ja{font-size:14px;line-height:1.35}
+.choice.ja{font-size:16px;line-height:1.35;min-height:80px}
 .select-info:empty{display:none}
-@media (max-width:420px){.level-picker{gap:4px;padding:4px 8px 10px}.level-picker .lv{font-size:12px}}
+@media (max-width:420px){.level-picker{gap:4px;padding:4px 8px 10px}.level-picker .lv{font-size:14px}}
+/* --- レビュー対応（2026-10-24） --- */
+.quiz{justify-content:flex-start}
+.review-note{display:block;font-size:13px;margin-top:-8px;color:#3d3d55}
+.review-note:empty{display:none}
+.stage-card .nm.hz .w{white-space:nowrap}
+.stage-card .nm.hz{font-size:20px;font-weight:900;line-height:1.25;font-family:"Noto Sans SC","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif}
+.stage-card .meta{font-size:12px}
+.stage-pager .page-pick{display:flex;align-items:center;gap:4px;font-size:14px;white-space:nowrap}
+.stage-pager .page-select{font:inherit;font-weight:700;min-height:44px;border:3px solid var(--ink);background:#fff;padding:0 6px;border-radius:0}
+.stage-pager .page-total{font-size:13px}
+#stage-pager2{padding:0 16px 6px}
+.q-main.listen{display:flex;justify-content:center}
+.big-play{background:#fff;border:3px solid var(--ink);box-shadow:var(--shadow);padding:6px 22px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;min-height:88px;touch-action:manipulation;font-size:56px;line-height:1.1}
+.big-play small{font-size:14px;font-weight:700;font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif}
+.big-play:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.big-play:focus-visible{outline:3px dashed var(--blue);outline-offset:3px}
+.q-feedback .yours{color:#6a040f}
+.continue{display:none;align-self:center;min-width:60%}
+.continue.show{display:block}
+@media (hover:none){.choice .k{display:none}}
+@media (prefers-reduced-motion:reduce){
+  .shake{animation:none!important}
+  .banner{transition:none}
+  .btn:active,.big-play:active{transform:none}
+  *{scroll-behavior:auto!important}
+}
+.stage-pager .btn.small{white-space:nowrap;padding:6px 8px}

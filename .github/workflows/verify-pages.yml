@@ -84,7 +84,7 @@ jobs:
           game_unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "game-unit.log").read_text())
           for label, count in [("tests", 5), ("pass", 5), ("fail", 0)]:
               assert re.search(rf"\b{label}\s+{count}\b", game_unit), ("game", label, count)
-          assert "3 game cases passed; pageErrors=0; consoleErrors=0" in (root / "game" / "game.log").read_text()
+          assert "4 game cases passed; pageErrors=0; consoleErrors=0" in (root / "game" / "game.log").read_text()
           audio = json.loads((root / "audio.json").read_text())
           assert audio["published_mp3_files_verified"] == 5009
           assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
