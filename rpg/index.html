@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1c2c">
+<meta name="format-detection" content="telephone=no">
+<title>汉字勇者 — HSK ことばの冒険RPG</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 fill=%22%233b5dc9%22/%3E%3Ctext x=%228%22 y=%2213%22 font-size=%2212%22 text-anchor=%22middle%22 fill=%22%23ffcd75%22%3E勇%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css?v=20261105-3">
+</head>
+<body>
+<div id="app">
+
+  <!-- タイトル -->
+  <section id="title" class="title">
+    <div class="title-main">
+      <div class="logo"><span class="logo-zh" lang="zh-CN">汉字勇者</span><span class="logo-ja">HSK ことばの冒険RPG</span></div>
+      <canvas id="title-art" width="122" height="20" aria-hidden="true"></canvas>
+      <p class="story">わすれんぼう大王に うばわれた ことばを 取りもどそう！<br>HSK1〜6級から 自分でえらんだことばが<br>何度もくりかえし 出てくるよ。</p>
+    </div>
+    <div class="title-side">
+      <div class="menu">
+        <button class="btn big primary" id="btn-continue">▶︎ つづきから <small id="continue-info"></small></button>
+        <button class="btn big" id="btn-new">はじめから</button>
+      </div>
+      <p class="hint">パソコン：矢印キーで移動・Enter で決定・M でメニュー（マウスで行きたい場所をクリックしても歩けます）<br>スマホ・タブレット：十字ボタンと A ボタン（地図をタップしても歩けます）</p>
+      <p class="hint">単語・音声は HSK単語サイトと同じデータです。記録はこの端末のブラウザに保存されます。</p>
+      <p class="back-site"><a href="../">← HSK単語サイトにもどる</a></p>
+    </div>
+  </section>
+
+  <!-- 地図 -->
+  <section id="game" hidden>
+    <div class="hud" id="hud">
+      <div class="hud-stats">
+        <span>Lv <b id="h-lv">1</b></span>
+        <span class="h-hp">HP <span class="bar"><i id="h-hpbar"></i></span> <b id="h-hp"></b></span>
+        <span>MP <b id="h-mp"></b></span>
+        <span><span class="coin" aria-hidden="true"></span><b id="h-gold"></b> G</span>
+      </div>
+      <div class="hud-btns">
+        <button id="btn-full" class="hud-btn" hidden aria-label="全画面">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
+        <button id="btn-menu" class="hud-btn">≡ メニュー</button>
+      </div>
+      <div class="h-loc"><span id="loc"></span>・<span id="h-words"></span></div>
+    </div>
+
+    <div class="screen" id="screen">
+      <canvas id="map" aria-label="ゲームの地図（クリック・タップした場所へ歩きます）"></canvas>
+      <div id="fade"></div>
+
+      <!-- 会話 -->
+      <div id="dialog" class="dialog" hidden>
+        <div id="d-name" class="d-name"></div>
+        <div id="d-body" class="d-body"></div>
+        <div id="d-choices" class="d-choices"></div>
+        <button id="d-next" class="d-next" aria-label="つぎへ">▼</button>
+      </div>
+    </div>
+
+    <p class="keys-hint" id="keys-hint">移動：矢印キー／WASD　話す・調べる：Enter／スペース　メニュー：M／Esc　マウス：行きたい場所・話したい人をクリック</p>
+
+    <div class="dpad" id="dpad" aria-hidden="true">
+      <span class="dp up" data-dir="up"></span>
+      <span class="dp left" data-dir="left"></span>
+      <span class="dp right" data-dir="right"></span>
+      <span class="dp down" data-dir="down"></span>
+      <span class="dp mid"></span>
+    </div>
+    <div class="abtn-wrap"><button id="btn-a" class="round a" aria-label="話す・調べる">A</button></div>
+  </section>
+
+  <!-- 戦闘・練習 -->
+  <section id="battle" class="battle" hidden>
+    <div class="b-top">
+      <div class="b-enemy"><b id="b-ename"></b><span id="b-ehp" class="bar e"><i id="b-ehpbar"></i></span></div>
+      <canvas id="bcanvas" width="240" height="120"></canvas>
+      <div class="b-me">HP <span class="bar"><i id="b-hpbar"></i></span> <b id="b-hp"></b>　MP <b id="b-mp"></b> <span id="b-combo" class="combo"></span></div>
+    </div>
+    <div class="b-main">
+      <div id="bmsg" class="bmsg" aria-live="polite"></div>
+      <div id="bcmd" class="bcmd"></div>
+      <div id="bcard" class="bcard" hidden>
+        <div id="bcard-title" class="bcard-title"></div>
+        <div id="bcard-word" class="winfo"></div>
+        <button id="bcard-ok" class="btn primary">おぼえた！ ▶︎</button>
+      </div>
+      <div id="bq" class="bq" hidden>
+        <div id="bq-type" class="bq-type"></div>
+        <div id="bq-main" class="bq-main"></div>
+        <div id="bchoices" class="bchoices"></div>
+        <div id="bq-info" class="winfo" hidden></div>
+      </div>
+      <div id="bnextwrap" class="bnextwrap" hidden><button id="bnext" class="btn primary">つぎへ ▶︎</button></div>
+    </div>
+  </section>
+
+  <!-- メニュー・お店 -->
+  <section id="panel" class="panel" hidden>
+    <div class="p-head"><b id="p-title"></b><button id="p-close" class="btn small">とじる ✕</button></div>
+    <div id="p-body" class="p-body"></div>
+  </section>
+
+  <!-- エンディング -->
+  <section id="ending" class="ending" hidden>
+    <h2>おめでとう！</h2>
+    <p>4つの宝珠がそろい、村にことばがもどってきた。<br>わすれんぼう大王も、いっしょに中国語を勉強することになったらしい……。</p>
+    <p class="end-zh" lang="zh-CN">谢谢你！再见！</p>
+    <p id="end-stats" class="end-stats"></p>
+    <p>クリア後も、王先生のところでことばをえらびなおして冒険をつづけられます。</p>
+    <button id="end-ok" class="btn big primary">冒険をつづける</button>
+  </section>
+
+  <div id="toast" class="toast" role="status"></div>
+</div>
+
+<script src="../js/hsk.js?v=20261105-3"></script>
+<script src="../data/vocab.js?v=20261105-3"></script>
+<script src="../game/js/pinyin.js?v=20261105-3"></script>
+<script src="../game/js/readings.js?v=20261105-3"></script>
+<script src="../game/js/questions.js?v=20261105-3"></script>
+<script src="js/words.js?v=20261105-3"></script>
+<script src="js/sprites.js?v=20261105-3"></script>
+<script src="js/world.js?v=20261105-3"></script>
+<script src="js/rpg.js?v=20261105-3"></script>
+</body>
+</html>

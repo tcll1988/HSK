@@ -8,6 +8,7 @@ on:
       - "css/**"
       - "js/**"
       - "game/**"
+      - "rpg/**"
       - "data/**"
       - "audio/**"
       - "test/**"
@@ -31,7 +32,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       HSK_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
     steps:
@@ -56,6 +57,7 @@ jobs:
           npm test | tee "$RUNNER_TEMP/hsk-checks/unit.log"
           node tools/audit_pronunciation.js | tee "$RUNNER_TEMP/hsk-checks/pronunciation.log"
           npm run test:game | tee "$RUNNER_TEMP/hsk-checks/game-unit.log"
+          npm run test:rpg | tee "$RUNNER_TEMP/hsk-checks/rpg-unit.log"
       - name: Wait for the published application
         run: python3 tools/wait_for_pages.py "$HSK_BASE_URL"
       - name: Verify every published recording
@@ -69,6 +71,8 @@ jobs:
           npm run test:continuity -- "$RUNNER_TEMP/hsk-checks/continuity"
           npm run test:learning -- "$RUNNER_TEMP/hsk-checks/learning"
           npm run test:game-browser -- "$RUNNER_TEMP/hsk-checks/game"
+          npm run test:rpg-browser -- "$RUNNER_TEMP/hsk-checks/rpg"
+          npm run test:rpg-devices -- "$RUNNER_TEMP/hsk-checks/rpg-devices"
       - name: Confirm complete test coverage
         run: |
           python3 - <<'PY'
@@ -85,12 +89,18 @@ jobs:
           for label, count in [("tests", 9), ("pass", 9), ("fail", 0)]:
               assert re.search(rf"\b{label}\s+{count}\b", game_unit), ("game", label, count)
           assert "4 game cases passed; pageErrors=0; consoleErrors=0" in (root / "game" / "game.log").read_text()
+          rpg_unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "rpg-unit.log").read_text())
+          for label, count in [("tests", 5), ("pass", 5), ("fail", 0)]:
+              assert re.search(rf"\b{label}\s+{count}\b", rpg_unit), ("rpg", label, count)
+          assert "4 rpg cases passed; pageErrors=0; consoleErrors=0" in (root / "rpg" / "rpg.log").read_text()
+          assert "13 rpg device cases passed; pageErrors=0; consoleErrors=0" in (root / "rpg-devices" / "rpg-devices.log").read_text()
           audio = json.loads((root / "audio.json").read_text())
           assert audio["published_mp3_files_verified"] == 5009
           assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
           summary = (
               f"Verified commit: `{os.environ['GITHUB_SHA']}`\n\n"
               "22 unit tests, 9 game data and question-generation tests, all 25 browser cases and 4 game browser cases passed.\n\n"
+              "RPG (rpg/): 5 data tests, 4 browser cases and 13 screen sizes passed.\n\n"
               "All 5,009 published MP3 files matched their release checksums and decoded successfully.\n"
           )
           Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary)

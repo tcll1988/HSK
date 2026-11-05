@@ -8,7 +8,10 @@
     "test:continuity": "node test/continuity-page.js",
     "test:learning": "node test/learning-page.js",
     "test:game": "node --test test/game.test.js test/game-questions.test.js",
-    "test:game-browser": "node test/game-page.js"
+    "test:game-browser": "node test/game-page.js",
+    "test:rpg": "node --test test/rpg.test.js",
+    "test:rpg-browser": "node test/rpg-page.js",
+    "test:rpg-devices": "node test/rpg-devices-page.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0"
