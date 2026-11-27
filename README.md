@@ -54,6 +54,10 @@ node tools/audit_pronunciation.js
 
 `rpg/` に、地図を歩いてモンスターと戦う RPG 形式の単語ゲームがあります。トップページの「🗺️ RPGで冒険（汉字勇者）」から開けます。学生が HSK の級とことばをえらぶと、えらんだことばが戦闘で何度もくりかえし出ます。サイトの単語一覧で学習中の20語や、練習でまちがえた単語もそのままえらべます（サイトの記録は読むだけで変更しません）。単語は `data/vocab.js`、音声は `audio/`、出題のしくみは `game/js/` を共通で使います。詳しくは [rpg/README.md](rpg/README.md)。
 
+## 真題トレーニング（過去問・公式サンプル演習）
+
+`exam/` に、HSK 1級〜6級の過去問・公式サンプル問題（全54セット・4,591問、音声48セット）を本番形式で解けるトレーニングページがあります。トップページの「📝 真題トレーニング（過去問・模試）」から開けます。パート別練習（即時採点・リスニング原文）、公式配点換算つきの本番タイマー模試、復習ノート、および `data/vocab.js`・`audio/` と連携した中国語タップ辞書に対応しています。詳しくは [exam/README.md](exam/README.md)。
+
 ## 開発・動作確認
 
 Node.js 20以上を使用します。
@@ -79,6 +83,8 @@ npm run test:game-browser -- /tmp/hsk-game-results
 npm run test:rpg
 npm run test:rpg-browser -- /tmp/hsk-rpg-results
 npm run test:rpg-devices -- /tmp/hsk-rpg-devices-results
+npm run test:exam
+npm run test:exam-browser -- /tmp/hsk-exam-results
 ```
 
 クラウド環境の既存Chromiumを使う場合、ブラウザの追加ダウンロードを省き、`HSK_CHROMIUM_EXECUTABLE=/usr/bin/chromium npm run test:browser -- /tmp/hsk-browser-results` を実行します。配信先は `HSK_BASE_URL` で変更できます。テストは一時的なブラウザコンテキストを使用し、ログとスクリーンショットを指定ディレクトリに保存します。

@@ -9,6 +9,7 @@ on:
       - "js/**"
       - "game/**"
       - "rpg/**"
+      - "exam/**"
       - "data/**"
       - "audio/**"
       - "test/**"
@@ -58,6 +59,7 @@ jobs:
           node tools/audit_pronunciation.js | tee "$RUNNER_TEMP/hsk-checks/pronunciation.log"
           npm run test:game | tee "$RUNNER_TEMP/hsk-checks/game-unit.log"
           npm run test:rpg | tee "$RUNNER_TEMP/hsk-checks/rpg-unit.log"
+          npm run test:exam | tee "$RUNNER_TEMP/hsk-checks/exam-unit.log"
       - name: Wait for the published application
         run: python3 tools/wait_for_pages.py "$HSK_BASE_URL"
       - name: Verify every published recording
@@ -73,6 +75,7 @@ jobs:
           npm run test:game-browser -- "$RUNNER_TEMP/hsk-checks/game"
           npm run test:rpg-browser -- "$RUNNER_TEMP/hsk-checks/rpg"
           npm run test:rpg-devices -- "$RUNNER_TEMP/hsk-checks/rpg-devices"
+          npm run test:exam-browser -- "$RUNNER_TEMP/hsk-checks/exam"
       - name: Confirm complete test coverage
         run: |
           python3 - <<'PY'
@@ -94,6 +97,10 @@ jobs:
               assert re.search(rf"\b{label}\s+{count}\b", rpg_unit), ("rpg", label, count)
           assert "4 rpg cases passed; pageErrors=0; consoleErrors=0" in (root / "rpg" / "rpg.log").read_text()
           assert "13 rpg device cases passed; pageErrors=0; consoleErrors=0" in (root / "rpg-devices" / "rpg-devices.log").read_text()
+          exam_unit = re.sub(r"\x1b\[[0-9;]*m", "", (root / "exam-unit.log").read_text())
+          for label, count in [("tests", 6), ("pass", 6), ("fail", 0)]:
+              assert re.search(rf"\b{label}\s+{count}\b", exam_unit), ("exam", label, count)
+          assert "4 exam cases passed; pageErrors=0; consoleErrors=0" in (root / "exam" / "exam.log").read_text()
           audio = json.loads((root / "audio.json").read_text())
           assert audio["published_mp3_files_verified"] == 5009
           assert audio["sha256_verified"] and audio["decoded_all_mp3_files"]
@@ -101,6 +108,7 @@ jobs:
               f"Verified commit: `{os.environ['GITHUB_SHA']}`\n\n"
               "22 unit tests, 9 game data and question-generation tests, all 25 browser cases and 4 game browser cases passed.\n\n"
               "RPG (rpg/): 5 data tests, 4 browser cases and 13 screen sizes passed.\n\n"
+              "Past Exams (exam/): 6 data/logic tests and 4 browser cases passed.\n\n"
               "All 5,009 published MP3 files matched their release checksums and decoded successfully.\n"
           )
           Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary)

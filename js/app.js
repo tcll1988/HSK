@@ -590,6 +590,10 @@
     rpg.href = "rpg/?level=" + encodeURIComponent(String(level));
     rpg.setAttribute("data-rpg-link", "");
     games.appendChild(rpg);
+    var exam = el("a", "game-entry exam-entry", "📝 真題トレーニング（過去問・模試）");
+    exam.href = "exam/?level=" + encodeURIComponent(String(level));
+    exam.setAttribute("data-exam-link", "");
+    games.appendChild(exam);
     copy.appendChild(games);
     head.appendChild(copy);
     var note = el("div", "masthead-note");

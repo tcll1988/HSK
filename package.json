@@ -11,7 +11,9 @@
     "test:game-browser": "node test/game-page.js",
     "test:rpg": "node --test test/rpg.test.js",
     "test:rpg-browser": "node test/rpg-page.js",
-    "test:rpg-devices": "node test/rpg-devices-page.js"
+    "test:rpg-devices": "node test/rpg-devices-page.js",
+    "test:exam": "node --test test/exam.test.js",
+    "test:exam-browser": "node test/exam-page.js"
   },
   "devDependencies": {
     "playwright": "^1.63.0"
