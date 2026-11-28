@@ -236,6 +236,214 @@
     };
   }
 
+  var BASIC_STOP_WORDS = new Set([
+    "的", "了", "吗", "呢", "吧", "啊", "呀", "我", "你", "他", "她", "它",
+    "是", "在", "有", "不", "这", "那", "也", "都", "和", "很", "就", "还",
+    "一", "个", "人", "上", "下", "里", "来", "去", "到", "说", "看", "会", "能", "要"
+  ]);
+
+  var GRAMMAR_PATTERNS = [
+    { re: /把/, label: "「把」構文（主語＋把＋目的語＋動詞＋その他成分）" },
+    { re: /被/, label: "「被」受身文（主語＋被＋行為者＋動詞＋その他成分）" },
+    { re: /比/, label: "「比」比較文（A＋比＋B＋形容詞／程度）" },
+    { re: /虽然[\s\S]*?(但是|可是|却)/, label: "譲歩複文「虽然…但是／可是…」（〜だけれども…）" },
+    { re: /因为[\s\S]*?所以/, label: "因果複文「因为…所以…」（〜なので…）" },
+    { re: /不但[\s\S]*?(而且|还|也)/, label: "累加複文「不但…而且／还…」（〜だけでなく…も）" },
+    { re: /不仅[\s\S]*?(而且|还|也)/, label: "累加複文「不仅…而且／还…」（〜だけでなく…も）" },
+    { re: /只要[\s\S]*?就/, label: "十分条件「只要…就…」（〜しさえすれば…）" },
+    { re: /只有[\s\S]*?才/, label: "必要条件「只有…才…」（〜して初めて…）" },
+    { re: /即使[\s\S]*?也/, label: "仮定譲歩「即使…也…」（たとえ〜でも…）" },
+    { re: /既然[\s\S]*?就/, label: "既定因果「既然…就…」（〜である以上は…）" },
+    { re: /无论[\s\S]*?(都|也)/, label: "無条件「无论…都／也…」（〜にかかわらず…）" },
+    { re: /一边[\s\S]*?一边/, label: "同時進行「一边…一边…」（〜しながら…）" },
+    { re: /越[\s\S]*?越/, label: "比例変化「越…越…」（〜すればするほど…）" },
+    { re: /既[\s\S]*?(又|也)/, label: "並列「既…又／也…」（〜でもあり…でもある）" },
+    { re: /连[\s\S]*?(都|也)/, label: "強調「连…都／也…」（〜でさえ…）" },
+    { re: /是[\s\S]+的[。！!]?$/, label: "「是…的」構文（時間・場所・方法・動作主などの強調）" },
+    { re: /[\u4e00-\u9fff]得[\u4e00-\u9fff]/, label: "「得」様態・程度補語（動詞＋得＋程度・状態）" }
+  ];
+
+  function detectGrammarHints(text) {
+    if (typeof text !== "string" || !text) return [];
+    var hits = [];
+    for (var i = 0; i < GRAMMAR_PATTERNS.length; i += 1) {
+      if (GRAMMAR_PATTERNS[i].re.test(text)) {
+        hits.push(GRAMMAR_PATTERNS[i].label);
+        if (hits.length >= 2) break;
+      }
+    }
+    return hits;
+  }
+
+  function extractKeyVocab(texts, vocabIndex, level, maxItems) {
+    if (!vocabIndex || !vocabIndex.byHanzi) return [];
+    var limit = maxItems || 6;
+    var seen = new Set();
+    var multi = [];
+    var single = [];
+    var allowStop = Number(level) === 1;
+
+    (texts || []).forEach(function (txt) {
+      if (typeof txt !== "string" || !txt) return;
+      var segs = segmentTextWithVocab(txt, vocabIndex);
+      segs.forEach(function (seg) {
+        if (!seg.entries || !seg.entries.length) return;
+        var h = seg.text;
+        if (seen.has(h)) return;
+        seen.add(h);
+        // Prefer entry closest to current exam level
+        var best = seg.entries[0];
+        if (level && seg.entries.length > 1) {
+          for (var j = 0; j < seg.entries.length; j += 1) {
+            if (seg.entries[j].level === level) { best = seg.entries[j]; break; }
+          }
+        }
+        var item = {
+          hanzi: best.hanzi,
+          pinyin: best.pinyin || "",
+          meaning: best.gloss || best.meaning || "",
+          pos: best.pos || "",
+          level: best.level || 1,
+          entry: best
+        };
+        if (h.length >= 2) {
+          multi.push(item);
+        } else if (allowStop || !BASIC_STOP_WORDS.has(h)) {
+          single.push(item);
+        }
+      });
+    });
+
+    return multi.concat(single).slice(0, limit);
+  }
+
+  function findOptionText(list, key) {
+    if (!Array.isArray(list) || !key) return "";
+    for (var i = 0; i < list.length; i += 1) {
+      if (list[i].key === key) {
+        if (list[i].text) return list[i].text;
+        if (list[i].image) return "（画像 " + key + "）";
+      }
+    }
+    return "";
+  }
+
+  function buildWrongExplanation(question, userVal, opts) {
+    opts = opts || {};
+    var q = question || {};
+    var uVal = typeof userVal === "string" ? userVal.trim() : "";
+    var group = opts.group || null;
+    var vocabIndex = opts.vocabIndex || null;
+    var level = opts.level || 0;
+    var comparison = null;
+    var assembledSentence = "";
+    var grammarHints = [];
+    var vocabSources = [];
+
+    if (q.type === "tf") {
+      var mapTf = function (v) { return v === "√" ? "正しい（√）" : v === "×" ? "誤り（×）" : v; };
+      if (uVal && uVal !== q.answer) {
+        comparison = {
+          userLabel: "あなたの解答",
+          userText: mapTf(uVal),
+          answerLabel: "正解",
+          answerText: mapTf(q.answer)
+        };
+      }
+      vocabSources.push(q.prompt, q.question, q.transcript);
+    } else if (q.type === "mc") {
+      var ansText = findOptionText(q.options, q.answer);
+      var usrText = findOptionText(q.options, uVal);
+      if (uVal && uVal !== q.answer) {
+        comparison = {
+          userLabel: "あなたの解答",
+          userText: uVal + (usrText ? "：" + usrText : ""),
+          answerLabel: "正解",
+          answerText: q.answer + (ansText ? "：" + ansText : "")
+        };
+      }
+      vocabSources.push(ansText, q.question, q.prompt, q.transcript, usrText);
+    } else if (q.type === "match") {
+      var pool = group && Array.isArray(group.pool) ? group.pool : [];
+      var mAnsText = findOptionText(pool, q.answer);
+      var mUsrText = findOptionText(pool, uVal);
+      if (uVal && uVal !== q.answer) {
+        comparison = {
+          userLabel: "あなたの解答",
+          userText: uVal + (mUsrText ? "：" + mUsrText : ""),
+          answerLabel: "正解",
+          answerText: q.answer + (mAnsText ? "：" + mAnsText : "")
+        };
+      }
+      vocabSources.push(mAnsText, q.prompt, q.transcript, mUsrText);
+    } else if (q.type === "order") {
+      var normU = uVal.replace(/\s+/g, "").toUpperCase();
+      var seq = (q.answer || "").split("");
+      var clauseTexts = seq.map(function (k) { return findOptionText(q.options, k); }).filter(Boolean);
+      assembledSentence = clauseTexts.reduce(function (acc, cur, idx) {
+        if (!idx) return cur;
+        var sep = /[，。！？；：、,.!?;:]$/.test(acc) ? "" : "，";
+        return acc + sep + cur;
+      }, "");
+      if (assembledSentence && !/[。！？.!?]$/.test(assembledSentence)) assembledSentence += "。";
+      if (normU && normU !== q.answer) {
+        comparison = {
+          userLabel: "あなたが選んだ順序",
+          userText: normU.split("").join(" → "),
+          answerLabel: "正しい順序",
+          answerText: seq.join(" → ")
+        };
+      }
+      grammarHints = detectGrammarHints(assembledSentence);
+      vocabSources.push(assembledSentence);
+    } else if (q.type === "scramble") {
+      if (uVal) {
+        comparison = {
+          userLabel: "あなたの文",
+          userText: uVal,
+          answerLabel: "正解の文",
+          answerText: q.answer || ""
+        };
+      }
+      grammarHints = detectGrammarHints(q.answer || "");
+      vocabSources = (q.tokens || []).concat([q.answer]);
+    } else if (q.type === "char_input") {
+      var promptStr = q.prompt || "";
+      var filled = promptStr;
+      if (/[（(]\s*[）)]/.test(promptStr)) {
+        filled = promptStr.replace(/[（(]\s*[）)]/, "【" + (q.answer || "") + "】");
+      } else if (/_{2,}/.test(promptStr)) {
+        filled = promptStr.replace(/_{2,}/, "【" + (q.answer || "") + "】");
+      } else {
+        filled = promptStr + " → 【" + (q.answer || "") + "】";
+      }
+      assembledSentence = filled;
+      if (uVal && uVal !== q.answer) {
+        comparison = {
+          userLabel: "あなたの入力",
+          userText: uVal,
+          answerLabel: "正解の漢字",
+          answerText: (q.answer || "") + (q.pinyinHint ? "（" + q.pinyinHint + "）" : "")
+        };
+      }
+      vocabSources.push(q.answer, promptStr);
+    } else if (q.type === "essay") {
+      vocabSources = (q.keywords || []).concat([q.prompt, q.answer]);
+    }
+
+    var summaryJa = (typeof q.explanationJa === "string" && q.explanationJa.trim())
+      ? q.explanationJa.trim()
+      : (q.answer ? "正解は「" + q.answer + "」です。文脈・語順と下のポイント語彙を確認しましょう。" : "公式の設問指示とポイント語彙を確認しましょう。");
+
+    return {
+      summaryJa: summaryJa,
+      comparison: comparison,
+      assembledSentence: assembledSentence,
+      grammarHints: grammarHints,
+      keyVocab: extractKeyVocab(vocabSources, vocabIndex, level, 6)
+    };
+  }
+
   return {
     normalizeChineseSentence: normalizeChineseSentence,
     countChineseChars: countChineseChars,
@@ -244,6 +452,9 @@
     scoreExam: scoreExam,
     buildVocabIndex: buildVocabIndex,
     segmentTextWithVocab: segmentTextWithVocab,
+    detectGrammarHints: detectGrammarHints,
+    extractKeyVocab: extractKeyVocab,
+    buildWrongExplanation: buildWrongExplanation,
     formatDurationClock: formatDurationClock,
     sanitizeProgress: sanitizeProgress
   };

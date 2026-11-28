@@ -68,7 +68,7 @@ async function practiceAndVocabCase(browser) {
     await page.waitForTimeout(300);
     await page.locator("[data-audio-toggle]").click();
 
-    // Answer Q1 correctly, Q21 wrongly -> verify instant feedback and mistake logging
+    // Answer Q1 correctly, Q21 wrongly -> verify instant feedback, Japanese explanation, and mistake logging
     const q1Ans = await page.evaluate(() => window.HSK_EXAM_PAGE.currentSet().questions[0].answer);
     await page.locator('[data-q-num="1"] [data-choice="' + q1Ans + '"]').click();
     assert.equal(await page.locator('[data-q-num="1"] [data-q-feedback]').getAttribute("data-q-feedback"), "right");
@@ -77,6 +77,12 @@ async function practiceAndVocabCase(browser) {
     const q21Wrong = q21Ans === "√" ? "×" : "√";
     await page.locator('[data-q-num="21"] [data-choice="' + q21Wrong + '"]').click();
     assert.equal(await page.locator('[data-q-num="21"] [data-q-feedback]').getAttribute("data-q-feedback"), "wrong");
+    const jaExp = page.locator('[data-q-num="21"] [data-ja-explanation]');
+    await jaExp.waitFor();
+    const jaExpText = await jaExp.innerText();
+    assert.match(jaExpText, /日本語解説/, "wrong answer shows Japanese explanation badge");
+    assert.match(jaExpText, /[\u3040-\u309f\u30a0-\u30ff]/, "wrong answer shows Japanese explanation body");
+    assert.ok(jaExpText.includes("あなたの解答") && jaExpText.includes("正解"), "wrong answer compares chosen vs correct");
 
     // Tap a Chinese word in reading Q26 to open vocab drawer
     const wordHit = page.locator('[data-q-num="26"] .zh-word-hit').first();
@@ -91,7 +97,7 @@ async function practiceAndVocabCase(browser) {
     await page.locator('[data-clear-mistake="H10901:21"]').click();
     assert.equal(await page.locator('[data-clear-mistake="H10901:21"]').count(), 0);
 
-    results.push("practiceAndVocab: H10901 images, audio, instant grading, vocab drawer, review notebook");
+    results.push("practiceAndVocab: H10901 images, audio, instant grading, Japanese wrong-answer explanation, vocab drawer, review notebook");
   } finally {
     await context.close();
   }

@@ -1262,17 +1262,94 @@
       card.appendChild(foot);
     }
 
+    function buildExplanationBox(exp, includeComparison) {
+      var box = el("div", "ja-explain-box");
+      box.setAttribute("data-ja-explanation", "");
+
+      var head = el("div", "ja-explain-head");
+      head.appendChild(el("span", "ja-explain-badge", "日本語解説"));
+      box.appendChild(head);
+
+      box.appendChild(el("p", "ja-explain-text", exp.summaryJa));
+
+      if (includeComparison && exp.comparison) {
+        var cmp = el("div", "ja-compare");
+        var uRow = el("div", "ja-compare-row is-user");
+        uRow.appendChild(el("span", "ja-compare-label", exp.comparison.userLabel));
+        uRow.appendChild(renderChineseRichText(exp.comparison.userText, "ja-compare-val", true));
+        cmp.appendChild(uRow);
+
+        var aRow = el("div", "ja-compare-row is-ans");
+        aRow.appendChild(el("span", "ja-compare-label", exp.comparison.answerLabel));
+        aRow.appendChild(renderChineseRichText(exp.comparison.answerText, "ja-compare-val", true));
+        cmp.appendChild(aRow);
+        box.appendChild(cmp);
+      }
+
+      if (exp.assembledSentence) {
+        var asm = el("div", "ja-assembled");
+        asm.appendChild(el("span", "ja-compare-label", "完成文"));
+        asm.appendChild(renderChineseRichText(exp.assembledSentence, "ja-compare-val", true));
+        box.appendChild(asm);
+      }
+
+      if (exp.grammarHints && exp.grammarHints.length) {
+        var gNote = el("p", "ja-grammar-note");
+        gNote.appendChild(el("strong", null, "文法ポイント："));
+        gNote.appendChild(document.createTextNode(exp.grammarHints.join(" ／ ")));
+        box.appendChild(gNote);
+      }
+
+      if (exp.keyVocab && exp.keyVocab.length) {
+        var vWrap = el("div", "ja-vocab-section");
+        vWrap.appendChild(el("span", "ja-vocab-title", "ポイント語彙（タップで発音）"));
+        var vList = el("div", "ja-vocab-list");
+        exp.keyVocab.forEach(function (v) {
+          var chip = el("button", "ja-vocab-chip");
+          chip.type = "button";
+          chip.setAttribute("data-explain-vocab", v.hanzi);
+          chip.appendChild(el("span", "ja-vocab-snd", "🔊"));
+          var hz = el("span", "ja-vocab-hz", v.hanzi);
+          hz.lang = "zh-CN";
+          chip.appendChild(hz);
+          if (v.pinyin) chip.appendChild(el("span", "ja-vocab-py", v.pinyin));
+          if (v.meaning) chip.appendChild(el("span", "ja-vocab-ja", v.meaning));
+          chip.addEventListener("click", function () { playWordEntry(v.entry); });
+          vList.appendChild(chip);
+        });
+        vWrap.appendChild(vList);
+        box.appendChild(vWrap);
+      }
+
+      return box;
+    }
+
     // Feedback box (Practice mode after answering, or Mock mode after submitting)
     if (showFeedback && grade) {
       var fbClass = "q-feedback " + (grade.gradable ? (grade.correct ? "is-right" : "is-wrong") : "is-info");
       var fb = el("div", fbClass);
       fb.setAttribute("data-q-feedback", grade.gradable ? (grade.correct ? "right" : "wrong") : "info");
+      var exp = window.HSK_EXAM.buildWrongExplanation(q, userVal, {
+        group: opts.group || null,
+        vocabIndex: vocabIndex,
+        level: setObj.level
+      });
+
       if (grade.gradable) {
         var msg = grade.correct ? "✓ 正解！" : ("✗ 不正解　｜　正解：" + q.answer);
         if (q.altAnswers && q.altAnswers.length) {
           msg += "（別解：" + q.altAnswers.join(" ／ ") + "）";
         }
         fb.appendChild(el("strong", null, msg));
+
+        if (!grade.correct) {
+          fb.appendChild(buildExplanationBox(exp, true));
+        } else if (q.explanationJa) {
+          var rightDet = el("details", "ja-explain-toggle");
+          rightDet.appendChild(el("summary", null, "💡 日本語解説を確認する"));
+          rightDet.appendChild(buildExplanationBox(exp, false));
+          fb.appendChild(rightDet);
+        }
       } else {
         var infoLines = [];
         if (grade.keywordsTotal > 0) {
@@ -1290,6 +1367,7 @@
           rubricP.style.margin = "8px 0 0";
           fb.appendChild(rubricP);
         }
+        fb.appendChild(buildExplanationBox(exp, false));
       }
       card.appendChild(fb);
     }

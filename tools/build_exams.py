@@ -27,10 +27,11 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAM_DIR = ROOT / "exam"
 DATA_DIR = EXAM_DIR / "data"
 SETS_DIR = DATA_DIR / "sets"
+EXPLANATIONS_DIR = DATA_DIR / "explanations"
 IMG_DIR = EXAM_DIR / "img"
 AUDIO_DIR = EXAM_DIR / "audio"
 
-VERSION = "20261126-v1"
+VERSION = "20261126-v2"
 
 # Official blueprint per HSK level
 LEVEL_SPECS = {
@@ -2134,6 +2135,13 @@ def main():
     manifest_entries = []
     for set_obj, _ in manifest_sets:
         sid = set_obj["id"]
+        exp_path = EXPLANATIONS_DIR / f"{sid}.json"
+        if exp_path.exists():
+            exp_map = json.loads(exp_path.read_text(encoding="utf-8"))
+            for q in set_obj["questions"]:
+                txt = (exp_map.get(str(q["n"])) or "").strip()
+                if txt:
+                    q["explanationJa"] = txt
         js_body = (
             "window.HSK_EXAM_SETS = window.HSK_EXAM_SETS || {};\n"
             f"window.HSK_EXAM_SETS[{json.dumps(sid)}] = "

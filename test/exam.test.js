@@ -96,6 +96,10 @@ test("every exam set has valid questions, valid answers, existing images, and va
       assertCleanText(q.passage, meta.id + " Q" + q.n + " passage");
       assertCleanText(q.transcript, meta.id + " Q" + q.n + " transcript");
       assertCleanText(q.answer, meta.id + " Q" + q.n + " answer");
+      assert.ok(
+        typeof q.explanationJa === "string" && q.explanationJa.trim().length >= 10 && /[\u3040-\u309f\u30a0-\u30ff]/.test(q.explanationJa),
+        meta.id + " Q" + q.n + " must have Japanese explanationJa"
+      );
       if (q.promptPinyin && q.promptPinyin.includes("ā")) pinyinACount += 1;
       if (q.pinyinHint && q.pinyinHint.includes("ā")) pinyinACount += 1;
       if (q.section === "listening" && meta.hasTranscript) {
@@ -216,7 +220,7 @@ test("exam-core scoreExam computes official HSK 200-pt (L1-2) and 300-pt (L3-6) 
   assert.ok(r4.wrongNumbers.includes(76));
 });
 
-test("exam-core vocab lookup segments Chinese exam text using the site's 5,003-word vocab", () => {
+test("exam-core vocab lookup segments Chinese exam text and builds Japanese wrong-answer explanations", () => {
   const vocab = loadVocab();
   const idx = examCore.buildVocabIndex(vocab);
   const segs = examCore.segmentTextWithVocab("我明天去图书馆学习汉语。", idx);
@@ -225,6 +229,31 @@ test("exam-core vocab lookup segments Chinese exam text using the site's 5,003-w
   assert.ok(words.includes("图书馆"));
   assert.ok(words.includes("学习"));
   assert.ok(words.includes("汉语"));
+
+  const expMc = examCore.buildWrongExplanation({
+    type: "mc",
+    prompt: "他每天去图书馆学习。",
+    options: [
+      { key: "A", text: "去医院" },
+      { key: "B", text: "去图书馆" },
+      { key: "C", text: "去商店" }
+    ],
+    answer: "B",
+    explanationJa: "本文に「每天去图书馆学习（毎日図書館へ勉強しに行く）」とあるため、Bが正解です。"
+  }, "A", { vocabIndex: idx, level: 2 });
+  assert.match(expMc.summaryJa, /図書館/);
+  assert.equal(expMc.comparison.userText, "A：去医院");
+  assert.equal(expMc.comparison.answerText, "B：去图书馆");
+  assert.ok(expMc.keyVocab.some((v) => v.hanzi === "图书馆" && v.meaning.length > 0));
+
+  const expScram = examCore.buildWrongExplanation({
+    type: "scramble",
+    tokens: ["他", "把", "书", "放在", "桌子上了"],
+    answer: "他把书放在桌子上了。",
+    explanationJa: "「把」構文（主語＋把＋目的語＋動詞＋場所補語）で「彼は本を机の上に置いた」となります。"
+  }, "他书把放在桌子上了", { vocabIndex: idx, level: 4 });
+  assert.ok(expScram.grammarHints.some((h) => h.includes("「把」構文")));
+  assert.equal(expScram.comparison.answerText, "他把书放在桌子上了。");
 });
 
 test("exam/index.html references existing shared site files and exam assets", () => {

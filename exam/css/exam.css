@@ -1348,6 +1348,173 @@ a:focus-visible {
   background: var(--surface);
 }
 
+/* Japanese Explanation Panel */
+.ja-explain-box {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--card);
+}
+
+.ja-explain-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.ja-explain-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.ja-explain-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: .9rem;
+  line-height: 1.72;
+}
+
+.ja-compare {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ja-compare-row,
+.ja-assembled {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: .86rem;
+}
+
+.ja-compare-row.is-user {
+  border-left: 3px solid var(--wrong);
+}
+
+.ja-compare-row.is-ans,
+.ja-assembled {
+  border-left: 3px solid var(--right);
+}
+
+.ja-assembled {
+  margin-top: 8px;
+}
+
+.ja-compare-label {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.ja-compare-val {
+  font-family: var(--zh-font);
+  font-size: .95rem;
+  line-height: 1.6;
+}
+
+.ja-grammar-note {
+  margin: 10px 0 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--aux);
+  background: var(--aux-soft);
+  font-size: .82rem;
+  line-height: 1.55;
+}
+
+.ja-vocab-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.ja-vocab-title {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 700;
+}
+
+.ja-vocab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ja-vocab-chip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--control);
+  font-size: .8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ja-vocab-chip:hover {
+  border-color: var(--aux);
+  background: var(--hover);
+}
+
+.ja-vocab-hz {
+  font-family: var(--zh-font);
+  font-size: .96rem;
+  font-weight: 700;
+}
+
+.ja-vocab-py {
+  color: var(--muted);
+  font-family: var(--py-font);
+  font-size: .78rem;
+}
+
+.ja-vocab-ja {
+  color: var(--ink);
+  font-size: .8rem;
+}
+
+.ja-vocab-snd {
+  color: var(--aux);
+  font-size: .82rem;
+}
+
+.ja-explain-toggle {
+  margin-top: 8px;
+}
+
+.ja-explain-toggle summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--right);
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .q-script {
   margin-top: 10px;
   border: 1px solid var(--line);

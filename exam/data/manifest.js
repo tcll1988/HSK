@@ -1,5 +1,5 @@
 window.HSK_EXAM_MANIFEST = {
-  "version": "20261126-v1",
+  "version": "20261126-v2",
   "sets": [
     {
       "id": "H10000",
